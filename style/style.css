@@ -1,0 +1,265 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    background: white;
+    border-radius: 20px;
+    padding: 40px;
+    max-width: 800px;
+    margin: 0 auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+h1 {
+    color: #333;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.container > p {
+    color: #666;
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.section {
+    margin: 30px 0;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 12px;
+    border-left: 4px solid #667eea;
+}
+
+.section h2 {
+    color: #333;
+    font-size: 18px;
+    margin-bottom: 15px;
+}
+
+/* Leitcode Eingabe */
+.input-group {
+    display: flex;
+    gap: 10px;
+}
+
+#leitcodeInput {
+    flex: 1;
+    padding: 12px 15px;
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    font-size: 18px;
+    font-family: monospace;
+}
+
+#leitcodeInput:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.address-preview {
+    margin-top: 15px;
+    padding: 15px;
+    background: #e8f5e9;
+    border-radius: 8px;
+    border: 1px solid #c8e6c9;
+}
+
+/* Paket-Konfiguration */
+.package-config {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 20px;
+}
+
+.package-type select {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 16px;
+}
+
+.dimension-inputs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.dimension-inputs label {
+    display: flex;
+    flex-direction: column;
+    font-size: 14px;
+    color: #555;
+}
+
+.dimension-inputs input {
+    padding: 8px;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    width: 100%;
+}
+
+.package-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+/* Buttons */
+button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-primary {
+    background: #667eea;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #5a67d8;
+    transform: translateY(-2px);
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+}
+
+.btn-check {
+    width: 100%;
+    padding: 15px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.btn-check:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+/* Paketliste */
+.package-list {
+    min-height: 60px;
+    padding: 10px;
+    background: white;
+    border-radius: 8px;
+    border: 2px dashed #ddd;
+}
+
+.empty-message {
+    color: #999;
+    text-align: center;
+    padding: 20px;
+}
+
+.package-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    margin: 5px 0;
+    background: #f1f3f5;
+    border-radius: 6px;
+    border-left: 4px solid #667eea;
+}
+
+.package-item .info {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.package-item .remove-btn {
+    background: #dc3545;
+    color: white;
+    padding: 5px 12px;
+    border-radius: 5px;
+    font-size: 12px;
+}
+
+.package-item .remove-btn:hover {
+    background: #c82333;
+}
+
+.list-actions {
+    margin-top: 10px;
+    text-align: right;
+}
+
+/* Ergebnis */
+.result {
+    margin-top: 20px;
+    padding: 20px;
+    border-radius: 10px;
+    display: none;
+}
+
+.result.success {
+    display: block;
+    background: #d4edda;
+    border: 2px solid #c3e6cb;
+    color: #155724;
+}
+
+.result.error {
+    display: block;
+    background: #f8d7da;
+    border: 2px solid #f5c6cb;
+    color: #721c24;
+}
+
+.result.info {
+    display: block;
+    background: #cce5ff;
+    border: 2px solid #b8daff;
+    color: #004085;
+}
+
+.result .details {
+    margin-top: 10px;
+    font-family: monospace;
+    background: rgba(0,0,0,0.05);
+    padding: 10px;
+    border-radius: 5px;
+    white-space: pre-wrap;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .container { padding: 20px; }
+    .package-config { grid-template-columns: 1fr; }
+    .dimension-inputs { grid-template-columns: 1fr; }
+    .input-group { flex-direction: column; }
+}
