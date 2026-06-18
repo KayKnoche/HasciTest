@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Packstation-Check - Leitcode basiert</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>📦 Packstation-Check</h1>
+        <p>Prüfen Sie, ob Ihre Pakete in eine Packstation passen</p>
+        
+        <!-- Schritt 1: Leitcode eingeben -->
+        <div class="section">
+            <h2>1. Leitcode eingeben</h2>
+            <div class="input-group">
+                <input type="text" id="leitcodeInput" placeholder="z.B. 53113032075" maxlength="11">
+                <button onclick="parseLeitcode()">Adresse laden</button>
+            </div>
+            <div id="addressPreview" class="address-preview" style="display:none;">
+                <p><strong>📍 Adresse:</strong> <span id="displayPlz">---</span> - Straße <span id="displayStreet">---</span>, Nr. <span id="displayHn">---</span></p>
+            </div>
+        </div>
+
+        <!-- Schritt 2: Pakete konfigurieren -->
+        <div class="section">
+            <h2>2. Pakete zusammenstellen</h2>
+            
+            <div class="package-config">
+                <div class="package-type">
+                    <h3>📦 Pakettyp</h3>
+                    <select id="packageType" onchange="updatePackageDimensions()">
+                        <option value="XS">XS (Mini)</option>
+                        <option value="S" selected>S (Small)</option>
+                        <option value="M">M (Medium)</option>
+                        <option value="L">L (Large)</option>
+                        <option value="XL">XL (Extra Large)</option>
+                    </select>
+                </div>
+                
+                <div class="package-dimensions">
+                    <h3>📐 Maße (cm)</h3>
+                    <div class="dimension-inputs">
+                        <label>Länge: <input type="number" id="pkgLength" value="30" min="1" step="0.5"></label>
+                        <label>Breite: <input type="number" id="pkgWidth" value="20" min="1" step="0.5"></label>
+                        <label>Höhe: <input type="number" id="pkgHeight" value="15" min="1" step="0.5"></label>
+                    </div>
+                </div>
+                
+                <div class="package-actions">
+                    <button onclick="addPackage()" class="btn-primary">➕ Paket hinzufügen</button>
+                    <button onclick="addPresetPackages()" class="btn-secondary">📋 Beispielpakete laden</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Schritt 3: Paketliste -->
+        <div class="section">
+            <h2>3. Ihre Pakete (<span id="packageCount">0</span>)</h2>
+            <div id="packageList" class="package-list">
+                <p class="empty-message">Noch keine Pakete hinzugefügt.</p>
+            </div>
+            <div class="list-actions">
+                <button onclick="clearPackages()" class="btn-danger">🗑️ Alle löschen</button>
+            </div>
+        </div>
+
+        <!-- Schritt 4: Prüfung starten -->
+        <div class="section">
+            <button onclick="checkPackstationCompatibility()" class="btn-check" id="checkBtn">
+                🔍 Packstation-Kompatibilität prüfen
+            </button>
+        </div>
+
+        <!-- Ergebnisbereich -->
+        <div id="result" class="result" style="display:none;"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
