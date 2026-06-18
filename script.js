@@ -131,7 +131,7 @@ function renderPackageList() {
     list.innerHTML = html;
 }
 
-// --- 8. Packstation-Kompatibilität prüfen (API-Call mit CORS-Proxy) ---
+// --- 8. Packstation-Kompatibilität prüfen (API-Call mit CORS-Proxy + Basic Auth) ---
 async function checkPackstationCompatibility() {
     const resultDiv = document.getElementById('result');
     
@@ -180,11 +180,14 @@ async function checkPackstationCompatibility() {
     resultDiv.innerHTML = '<strong>⏳</strong> <p>Prüfe Packstation-Kompatibilität beim Service...</p>';
     resultDiv.style.display = 'block';
     
-    // --- CORS-PROXY KONFIGURATION ---
-    const useProxy = true; // Auf false setzen, wenn kein Proxy benötigt wird
+    // --- CORS-PROXY + BASIC AUTH KONFIGURATION ---
+    const useProxy = true;
     const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
     const targetUrl = 'https://depst-mara-prod1-decisionhub.pegacloud.net/prweb/api/HASCI/02/notificationLocations';
     const apiUrl = useProxy ? proxyUrl + targetUrl : targetUrl;
+    
+    // --- AUTHENTICATION HEADER ---
+    const authHeader = 'Basic SEFTQ0lBY2Nlc3M6RGVoamlzbGM/MnE=';
     
     try {
         console.log('📤 Sende Payload an:', apiUrl);
@@ -193,7 +196,8 @@ async function checkPackstationCompatibility() {
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Authorization': authHeader
             },
             body: JSON.stringify(payload)
         });
@@ -355,6 +359,7 @@ function showError(resultDiv, message) {
 function checkCORS() {
     console.log('📍 Aktuelle Seite:', window.location.origin);
     console.log('🔗 Ziel-API:', 'https://depst-mara-prod1-decisionhub.pegacloud.net');
+    console.log('🔐 Authentifizierung: Basic Auth wird verwendet');
     console.log('⚠️ CORS-Problem möglich, wenn die API keine Cross-Origin-Requests erlaubt.');
     console.log('💡 Lösung: CORS-Proxy wird verwendet (cors-anywhere.herokuapp.com)');
     console.log('📌 Hinweis: Bei erster Nutzung kurz auf "Request temporary access" klicken!');
