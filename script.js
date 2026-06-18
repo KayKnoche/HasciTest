@@ -26,7 +26,6 @@ function parseLeitcode() {
     const streetCode = leitcode.substring(5, 8);
     const houseNumber = leitcode.substring(8, 11);
     
-    // PLZ prüfen
     if (!isValidPLZ(plz)) {
         showError(resultDiv, `Ungültige PLZ: ${plz}`);
         return;
@@ -34,16 +33,12 @@ function parseLeitcode() {
     
     parsedAddress = { plz, streetCode, houseNumber };
     
-    // Adresse anzeigen
     document.getElementById('displayPlz').textContent = plz;
     document.getElementById('displayStreet').textContent = streetCode;
     document.getElementById('displayHn').textContent = parseInt(houseNumber);
     document.getElementById('addressPreview').style.display = 'block';
     
-    // Ergebnis zurücksetzen
     resultDiv.style.display = 'none';
-    
-    // Erfolgsmeldung
     showSuccess(resultDiv, `Leitcode erfolgreich geparst: ${plz} - Straße ${streetCode}, Nr. ${parseInt(houseNumber)}`);
 }
 
@@ -63,13 +58,11 @@ function addPackage() {
     const height = parseFloat(document.getElementById('pkgHeight').value);
     const resultDiv = document.getElementById('result');
     
-    // Validierung
     if (isNaN(length) || isNaN(width) || isNaN(height) || length <= 0 || width <= 0 || height <= 0) {
         showError(resultDiv, 'Bitte gültige Maße eingeben (alle > 0).');
         return;
     }
     
-    // Prüfen, ob Paket in Packstation passen könnte (max. Maße)
     if (length > 80 || width > 50 || height > 45) {
         showError(resultDiv, 'Paket ist zu groß für Packstationen (max. 80x50x45 cm).');
         return;
@@ -83,9 +76,9 @@ function addPackage() {
 // --- 4. Beispielpakete laden ---
 function addPresetPackages() {
     const preset = [
-        { length: 30, width: 20, height: 15 },  // S
-        { length: 45, width: 35, height: 20 },  // M
-        { length: 60, width: 40, height: 30 }   // L
+        { length: 30, width: 20, height: 15 },
+        { length: 45, width: 35, height: 20 },
+        { length: 60, width: 40, height: 30 }
     ];
     packages = packages.concat(preset);
     renderPackageList();
@@ -131,23 +124,20 @@ function renderPackageList() {
     list.innerHTML = html;
 }
 
-// --- 8. Packstation-Kompatibilität prüfen (API-Call mit CORS-Proxy + Basic Auth) ---
+// --- 8. Hauptfunktion: Packstation-Kompatibilität prüfen ---
 async function checkPackstationCompatibility() {
     const resultDiv = document.getElementById('result');
     
-    // Prüfen: Leitcode vorhanden?
     if (!parsedAddress) {
         showError(resultDiv, 'Bitte zuerst einen gültigen Leitcode eingeben.');
         return;
     }
     
-    // Prüfen: Pakete vorhanden?
     if (packages.length === 0) {
         showError(resultDiv, 'Bitte mindestens ein Paket hinzufügen.');
         return;
     }
     
-    // Prüfen: Packstations-Kompatibilität (lokale Vorschau)
     const compatiblePackages = packages.filter(pkg => 
         pkg.length <= 60 && pkg.width <= 40 && pkg.height <= 35
     );
@@ -155,7 +145,7 @@ async function checkPackstationCompatibility() {
         pkg.length > 60 || pkg.width > 40 || pkg.height > 35
     );
     
-    // API-Payload erstellen
+    // Payload erstellen
     const payload = {
         "productionLocationCode": "TestDemo",
         "deliveryRole": "Paketzusteller",
@@ -180,146 +170,130 @@ async function checkPackstationCompatibility() {
     resultDiv.innerHTML = '<strong>⏳</strong> <p>Prüfe Packstation-Kompatibilität beim Service...</p>';
     resultDiv.style.display = 'block';
     
-    // --- CORS-PROXY + BASIC AUTH KONFIGURATION ---
-    const useProxy = true;
-    const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
-    const targetUrl = 'https://depst-mara-prod1-decisionhub.pegacloud.net/prweb/api/HASCI/02/notificationLocations';
-    const apiUrl = useProxy ? proxyUrl + targetUrl : targetUrl;
-    
-    // --- AUTHENTICATION HEADER ---
+    // --- API-KONFIGURATION ---
     const authHeader = 'Basic SEFTQ0lBY2Nlc3M6RGVoamlzbGM/MnE=';
+    const targetUrl = 'https://depst-mara-prod1-decisionhub.pegacloud.net/prweb/api/HASCI/02/notificationLocations';
+    
+    // CORS-Proxy deaktiviert (direkter Aufruf)
+    const useProxy = false;
+    const apiUrl = useProxy ? `https://cors-anywhere.herokuapp.com/${targetUrl}` : targetUrl;
     
     try {
-        console.log('📤 Sende Payload an:', apiUrl);
+        console.log('📤 URL:', apiUrl);
         console.log('📦 Payload:', JSON.stringify(payload, null, 2));
+        console.log('🔐 Auth:', authHeader);
         
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': authHeader
+                'Authorization': authHeader,
+                'Accept': 'application/json'
             },
             body: JSON.stringify(payload)
         });
         
-        console.log('📥 Response Status:', response.status);
+        console.log('📥 Status:', response.status);
         
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('❌ Fehlerantwort:', errorText);
-            throw new Error(`Service antwortet mit Status ${response.status}: ${errorText}`);
+            console.error('❌ Fehler:', errorText);
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
         
         const data = await response.json();
-        console.log('✅ Service-Antwort:', data);
+        console.log('✅ Antwort:', data);
         
-        // Ergebnis anzeigen
         showPackstationResult(resultDiv, compatiblePackages, incompatiblePackages, data);
         
     } catch (error) {
-        console.error('❌ Fehler beim API-Call:', error);
-        // Bei API-Fehler trotzdem lokales Ergebnis anzeigen
+        console.error('❌ Fehler:', error);
         showPackstationResult(resultDiv, compatiblePackages, incompatiblePackages, null);
     }
 }
 
-// --- 9. Ergebnis anzeigen (aktualisiert für Service-Antwort) ---
+// --- 9. Ergebnis anzeigen ---
 function showPackstationResult(resultDiv, compatible, incompatible, apiData) {
     let html = '<strong>📊 Packstation-Kompatibilität</strong><div class="details">';
     
-    // --- Lokale Bewertung (Paketgrößen) ---
+    // Lokale Bewertung
     if (incompatible.length === 0) {
         html += '<p style="color: #155724;">✅ Alle Pakete passen in Packstationsfächer (max. 60×40×35 cm)</p>';
     } else {
-        html += `<p style="color: #721c24;">⚠️ ${incompatible.length} Paket(e) sind zu groß für Packstationen:</p>`;
-        incompatible.forEach((pkg, i) => {
-            html += `<p style="margin-left:20px;">📦 ${pkg.length}×${pkg.width}×${pkg.height} cm (zu groß)</p>`;
+        html += `<p style="color: #721c24;">⚠️ ${incompatible.length} Paket(e) sind zu groß:</p>`;
+        incompatible.forEach((pkg) => {
+            html += `<p style="margin-left:20px;">📦 ${pkg.length}×${pkg.width}×${pkg.height} cm</p>`;
         });
         if (compatible.length > 0) {
-            html += `<p style="color: #155724;">✅ ${compatible.length} Paket(e) passen in Packstationen.</p>`;
+            html += `<p style="color: #155724;">✅ ${compatible.length} Paket(e) passen.</p>`;
         }
     }
     
-    // --- Service-Antwort auswerten (falls vorhanden) ---
+    // Service-Antwort
     if (apiData && apiData.locations) {
         html += '<hr style="margin:15px 0;">';
-        html += '<h4 style="margin:10px 0;">📍 Vorschläge für Packstationen & Postfilialen</h4>';
+        html += '<h4 style="margin:10px 0;">📍 Vorschläge</h4>';
         
-        // Nach Typ sortieren: Packstationen zuerst
         const locations = apiData.locations;
         const parcelStations = locations.filter(loc => loc.type === 'parcel station');
         const postOffices = locations.filter(loc => loc.type === 'post office');
         
-        // Packstationen anzeigen (max. 5)
         if (parcelStations.length > 0) {
-            html += '<p><strong>📦 Packstationen (nach Bewertung sortiert):</strong></p>';
-            const topStations = parcelStations.slice(0, 5);
-            topStations.forEach((station, index) => {
+            html += '<p><strong>📦 Packstationen:</strong></p>';
+            parcelStations.slice(0, 5).forEach((station, index) => {
                 const rating = parseInt(station.rating);
                 const stars = rating > 0 ? '⭐'.repeat(Math.min(rating, 5)) : '⚠️';
                 html += `
                     <div style="background:#f8f9fa;padding:10px;margin:5px 0;border-radius:5px;border-left:3px solid ${rating > 0 ? '#28a745' : '#ffc107'};">
-                        <strong>#${index + 1}</strong> 
-                        ${station.id} - 
+                        <strong>#${index + 1}</strong> ${station.id} - 
                         ${station.address.zipCode} ${station.address.streetCode}/${station.address.housenumberCode}
-                        <span style="float:right;">Bewertung: ${stars} (${station.rating})</span>
+                        <span style="float:right;">${stars} (${station.rating})</span>
                     </div>
                 `;
             });
         }
         
-        // Postfilialen anzeigen (max. 3)
         if (postOffices.length > 0) {
             html += '<p style="margin-top:10px;"><strong>🏤 Postfilialen:</strong></p>';
-            const topOffices = postOffices.slice(0, 3);
-            topOffices.forEach((office, index) => {
+            postOffices.slice(0, 3).forEach((office, index) => {
                 const rating = parseInt(office.rating);
                 const stars = rating > 0 ? '⭐'.repeat(Math.min(rating, 3)) : '⚠️';
                 html += `
                     <div style="background:#f8f9fa;padding:10px;margin:5px 0;border-radius:5px;border-left:3px solid ${rating > 0 ? '#17a2b8' : '#ffc107'};">
-                        <strong>#${index + 1}</strong> 
-                        ${office.id} - 
+                        <strong>#${index + 1}</strong> ${office.id} - 
                         ${office.address.zipCode} ${office.address.streetCode}/${office.address.housenumberCode}
-                        <span style="float:right;">Bewertung: ${stars} (${office.rating})</span>
+                        <span style="float:right;">${stars} (${office.rating})</span>
                     </div>
                 `;
             });
         }
         
-        // Zusätzliche Informationen
         html += `<p style="margin-top:10px;font-size:12px;color:#666;">
-            <strong>ℹ️ Preference-Wert:</strong> ${apiData.preference || 'nicht angegeben'} | 
-            <strong>Insgesamt:</strong> ${locations.length} Standorte gefunden
+            Preference: ${apiData.preference || 'n/a'} | ${locations.length} Standorte
         </p>`;
         
-        // Vollständige JSON-Antwort (ausklappbar)
         html += `
             <details style="margin-top:10px;">
-                <summary style="cursor:pointer;color:#667eea;">📄 Vollständige Service-Antwort anzeigen</summary>
-                <pre style="background:#f8f9fa;padding:10px;border-radius:5px;overflow:auto;max-height:200px;font-size:12px;margin-top:5px;">${JSON.stringify(apiData, null, 2)}</pre>
+                <summary style="cursor:pointer;color:#667eea;">📄 JSON-Antwort</summary>
+                <pre style="background:#f8f9fa;padding:10px;border-radius:5px;overflow:auto;max-height:200px;font-size:12px;">${JSON.stringify(apiData, null, 2)}</pre>
             </details>
         `;
         
     } else if (apiData) {
-        // Fallback: API hat geantwortet, aber kein "locations"-Feld
         html += '<hr style="margin:15px 0;">';
-        html += `<p style="color: #856404;">ℹ️ Service-Antwort enthält keine Standortdaten.</p>`;
+        html += `<p style="color: #856404;">ℹ️ Keine Standortdaten in der Antwort.</p>`;
         html += `
-            <details style="margin-top:10px;">
-                <summary style="cursor:pointer;color:#667eea;">📄 Service-Antwort anzeigen</summary>
-                <pre style="background:#f8f9fa;padding:10px;border-radius:5px;overflow:auto;max-height:200px;font-size:12px;margin-top:5px;">${JSON.stringify(apiData, null, 2)}</pre>
+            <details>
+                <summary style="cursor:pointer;color:#667eea;">📄 JSON-Antwort</summary>
+                <pre style="background:#f8f9fa;padding:10px;border-radius:5px;overflow:auto;max-height:200px;font-size:12px;">${JSON.stringify(apiData, null, 2)}</pre>
             </details>
         `;
     } else {
-        // Keine API-Antwort (nur lokale Prüfung)
-        html += `<p style="color: #856404;margin-top:10px;">ℹ️ Service nicht erreichbar. Lokale Prüfung basierend auf Packstations-Maximalmaßen (60×40×35 cm).</p>`;
-        html += `<p style="font-size:12px;color:#666;margin-top:5px;">💡 Tipp: Prüfen Sie die Konsole (F12) für Details.</p>`;
+        html += `<p style="color: #856404;margin-top:10px;">ℹ️ Service nicht erreichbar. Lokale Prüfung.</p>`;
     }
     
-    // --- Zusammenfassung ---
     html += `<p style="margin-top:15px;font-size:14px;color:#555;">
-        <strong>📦 Pakete insgesamt:</strong> ${packages.length} | 
-        <strong>📍 Zieladresse:</strong> ${parsedAddress.plz} - Straße ${parsedAddress.streetCode}, Nr. ${parseInt(parsedAddress.houseNumber)}
+        📦 ${packages.length} Pakete | 📍 ${parsedAddress.plz} - ${parsedAddress.streetCode}/${parsedAddress.houseNumber}
     </p>`;
     
     html += '</div>';
@@ -355,25 +329,14 @@ function showError(resultDiv, message) {
     resultDiv.style.display = 'block';
 }
 
-// --- Debugging: CORS-Problem erkennen ---
-function checkCORS() {
-    console.log('📍 Aktuelle Seite:', window.location.origin);
-    console.log('🔗 Ziel-API:', 'https://depst-mara-prod1-decisionhub.pegacloud.net');
-    console.log('🔐 Authentifizierung: Basic Auth wird verwendet');
-    console.log('⚠️ CORS-Problem möglich, wenn die API keine Cross-Origin-Requests erlaubt.');
-    console.log('💡 Lösung: CORS-Proxy wird verwendet (cors-anywhere.herokuapp.com)');
-    console.log('📌 Hinweis: Bei erster Nutzung kurz auf "Request temporary access" klicken!');
-}
-
 // --- Event-Listener ---
 document.addEventListener('DOMContentLoaded', function() {
-    // Debugging ausgeben
-    checkCORS();
+    console.log('📍 Seite geladen:', window.location.origin);
+    console.log('🔗 API:', 'https://depst-mara-prod1-decisionhub.pegacloud.net');
+    console.log('🔐 Basic Auth aktiviert');
     
-    // Standard-Paketgröße setzen
     updatePackageDimensions();
     
-    // Eingabe auf Enter
     document.getElementById('leitcodeInput').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             parseLeitcode();
