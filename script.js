@@ -131,7 +131,7 @@ function renderPackageList() {
     list.innerHTML = html;
 }
 
-// --- 8. Packstation-Kompatibilität prüfen (API-Call) ---
+// --- 8. Packstation-Kompatibilität prüfen (API-Call mit CORS-Proxy) ---
 async function checkPackstationCompatibility() {
     const resultDiv = document.getElementById('result');
     
@@ -180,8 +180,17 @@ async function checkPackstationCompatibility() {
     resultDiv.innerHTML = '<strong>⏳</strong> <p>Prüfe Packstation-Kompatibilität beim Service...</p>';
     resultDiv.style.display = 'block';
     
+    // --- CORS-PROXY KONFIGURATION ---
+    const useProxy = true; // Auf false setzen, wenn kein Proxy benötigt wird
+    const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+    const targetUrl = 'https://depst-mara-prod1-decisionhub.pegacloud.net/prweb/api/HASCI/02/notificationLocations';
+    const apiUrl = useProxy ? proxyUrl + targetUrl : targetUrl;
+    
     try {
-        const response = await fetch('https://depst-mara-prod1-decisionhub.pegacloud.net/prweb/api/HASCI/02/notificationLocations', {
+        console.log('📤 Sende Payload an:', apiUrl);
+        console.log('📦 Payload:', JSON.stringify(payload, null, 2));
+        
+        const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -189,17 +198,22 @@ async function checkPackstationCompatibility() {
             body: JSON.stringify(payload)
         });
         
+        console.log('📥 Response Status:', response.status);
+        
         if (!response.ok) {
             const errorText = await response.text();
+            console.error('❌ Fehlerantwort:', errorText);
             throw new Error(`Service antwortet mit Status ${response.status}: ${errorText}`);
         }
         
         const data = await response.json();
+        console.log('✅ Service-Antwort:', data);
         
         // Ergebnis anzeigen
         showPackstationResult(resultDiv, compatiblePackages, incompatiblePackages, data);
         
     } catch (error) {
+        console.error('❌ Fehler beim API-Call:', error);
         // Bei API-Fehler trotzdem lokales Ergebnis anzeigen
         showPackstationResult(resultDiv, compatiblePackages, incompatiblePackages, null);
     }
@@ -295,6 +309,7 @@ function showPackstationResult(resultDiv, compatible, incompatible, apiData) {
     } else {
         // Keine API-Antwort (nur lokale Prüfung)
         html += `<p style="color: #856404;margin-top:10px;">ℹ️ Service nicht erreichbar. Lokale Prüfung basierend auf Packstations-Maximalmaßen (60×40×35 cm).</p>`;
+        html += `<p style="font-size:12px;color:#666;margin-top:5px;">💡 Tipp: Prüfen Sie die Konsole (F12) für Details.</p>`;
     }
     
     // --- Zusammenfassung ---
@@ -336,8 +351,20 @@ function showError(resultDiv, message) {
     resultDiv.style.display = 'block';
 }
 
+// --- Debugging: CORS-Problem erkennen ---
+function checkCORS() {
+    console.log('📍 Aktuelle Seite:', window.location.origin);
+    console.log('🔗 Ziel-API:', 'https://depst-mara-prod1-decisionhub.pegacloud.net');
+    console.log('⚠️ CORS-Problem möglich, wenn die API keine Cross-Origin-Requests erlaubt.');
+    console.log('💡 Lösung: CORS-Proxy wird verwendet (cors-anywhere.herokuapp.com)');
+    console.log('📌 Hinweis: Bei erster Nutzung kurz auf "Request temporary access" klicken!');
+}
+
 // --- Event-Listener ---
 document.addEventListener('DOMContentLoaded', function() {
+    // Debugging ausgeben
+    checkCORS();
+    
     // Standard-Paketgröße setzen
     updatePackageDimensions();
     
