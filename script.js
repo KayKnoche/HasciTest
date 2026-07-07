@@ -5,6 +5,7 @@ let packages = [];
 let parsedAddress = null;
 let firstApiResponse = null;
 let secondApiResponse = null;
+let lastCorrelationId = null; // Speichert die letzte Correlation ID
 
 // --- Paket-Definitionen (DHL-Standard) ---
 const PACKAGE_TYPES = {
@@ -40,6 +41,8 @@ function toggleEnvironment() {
         }
         if (indicator) indicator.style.transform = 'translateX(26px)';
         console.log('🔄 Umgebung auf STAGING umgeschaltet');
+        // Bei Umgebungswechsel: Ergebnis zurücksetzen
+        resetResult();
     } else {
         currentEnv = 'prod';
         if (slider) slider.style.background = '#ccc';
@@ -51,12 +54,33 @@ function toggleEnvironment() {
         }
         if (indicator) indicator.style.transform = 'translateX(0px)';
         console.log('🔄 Umgebung auf PRODUCTION umgeschaltet');
+        // Bei Umgebungswechsel: Ergebnis zurücksetzen
+        resetResult();
     }
+}
+
+// --- RESULT RESET ---
+function resetResult() {
+    const resultDiv = document.getElementById('result');
+    if (resultDiv) {
+        resultDiv.style.display = 'none';
+        resultDiv.className = 'result';
+        resultDiv.innerHTML = '';
+    }
+    // Gespeicherte API-Responses zurücksetzen
+    firstApiResponse = null;
+    secondApiResponse = null;
+    lastCorrelationId = null;
+    console.log('🔄 Ergebnis und Cache zurückgesetzt');
 }
 
 // --- 1. Leitcode parsen ---
 function parseLeitcode() {
     console.log('🔍 parseLeitcode() aufgerufen');
+    
+    // RESET: Vorherige Ergebnisse löschen
+    resetResult();
+    
     const input = document.getElementById('leitcodeInput');
     const leitcode = input.value.trim().replace(/\D/g, '');
     const resultDiv = document.getElementById('result');
@@ -123,6 +147,8 @@ function addPackage() {
 // --- 4. Beispielpakete laden ---
 function addPresetPackages() {
     console.log('📋 addPresetPackages() aufgerufen');
+    resetResult(); // Ergebnis zurücksetzen
+    
     const preset = [
         { length: 30, width: 20, height: 15 },
         { length: 45, width: 35, height: 20 },
@@ -139,6 +165,7 @@ function removePackage(index) {
     console.log(`🗑️ removePackage(${index}) aufgerufen`);
     packages.splice(index, 1);
     renderPackageList();
+    resetResult(); // Ergebnis zurücksetzen
 }
 
 // --- 6. Alle Pakete löschen ---
@@ -146,6 +173,7 @@ function clearPackages() {
     console.log('🗑️ clearPackages() aufgerufen');
     packages = [];
     renderPackageList();
+    resetResult(); // Ergebnis zurücksetzen
 }
 
 // --- 7. Paketliste rendern ---
@@ -197,8 +225,12 @@ async function checkPackstationCompatibility() {
         pkg.length > 60 || pkg.width > 40 || pkg.height > 35
     );
     
+    // EINDEUTIGE CORRELATION ID - immer neu!
     const timestamp = Date.now();
-    const correlationId = `TestDemo_${timestamp}_${Math.random().toString(36).substring(7)}`;
+    const random = Math.random().toString(36).substring(7);
+    const correlationId = `TestDemo_${timestamp}_${random}`;
+    lastCorrelationId = correlationId;
+    console.log(`🆔 Neue Correlation ID: ${correlationId}`);
     
     const payload = {
         "productionLocationCode": "TestDemo",
@@ -239,9 +271,10 @@ async function checkPackstationCompatibility() {
         console.log('🌍 Verwende PRODUCTION Umgebung');
     }
     
-    // DIREKTER CALL - OHNE PROXY (wie am Anfang)
+    // DIREKTER CALL - OHNE PROXY
     const apiUrl = targetUrl;
     console.log('📤 URL (1. Call):', apiUrl);
+    console.log('📦 Adresse:', parsedAddress.plz, parsedAddress.streetCode, parsedAddress.houseNumber);
     
     try {
         const response = await fetch(apiUrl, {
@@ -249,7 +282,10 @@ async function checkPackstationCompatibility() {
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': authHeader,
-                'Accept': 'application/json'
+                'Accept': 'application/json',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
             },
             body: JSON.stringify(payload)
         });
@@ -268,7 +304,7 @@ async function checkPackstationCompatibility() {
         firstApiResponse = data;
         showFirstApiResult(resultDiv, compatiblePackages, incompatiblePackages, data);
         
-        // Zweiten Call OHNE PROXY
+        // Zweiten Call
         await callSecondWebService(resultDiv, secondUrl, environment);
         
     } catch (error) {
@@ -341,6 +377,7 @@ function showFirstApiResult(resultDiv, compatible, incompatible, apiData) {
     
     html += `<p style="margin-top:15px;font-size:14px;color:#555;">
         📦 ${packages.length} Pakete | 📍 ${parsedAddress.plz} - ${parsedAddress.streetCode}/${parsedAddress.houseNumber}
+        <span style="font-size:11px;color:#999;display:block;margin-top:4px;">🆔 ${lastCorrelationId}</span>
     </p>`;
     html += '<div style="margin-top:15px;padding:10px;background:#e3f2fd;border-radius:8px;text-align:center;">⏳ Führe zweiten WebService-Call durch...</div>';
     html += '</div>';
@@ -375,7 +412,10 @@ async function callSecondWebService(resultDiv, secondUrl, environment) {
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': authHeader,
-                'Accept': 'application/json'
+                'Accept': 'application/json',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
             },
             body: JSON.stringify(secondPayload)
         });
@@ -496,6 +536,7 @@ function showFinalResult(resultDiv, data) {
             📦 ${packages.length} Pakete | 📍 ${parsedAddress.plz} - ${parsedAddress.streetCode}/${parsedAddress.houseNumber}
             ${secondApiResponse ? ' | ✅ 2. Call erfolgreich' : ' | ⚠️ 2. Call fehlgeschlagen'}
             ${data && data.Status ? ` | Status: ${data.Status}` : ''}
+            <span style="font-size:11px;color:#999;display:block;margin-top:4px;">🆔 ${lastCorrelationId}</span>
         </div>
     `;
     
@@ -537,6 +578,7 @@ function showLocalResult(resultDiv, compatible, incompatible, errorMessage) {
     
     html += `<p style="margin-top:15px;font-size:14px;color:#555;">
         📦 ${packages.length} Pakete | 📍 ${parsedAddress.plz} - ${parsedAddress.streetCode}/${parsedAddress.houseNumber}
+        <span style="font-size:11px;color:#999;display:block;margin-top:4px;">🆔 ${lastCorrelationId}</span>
     </p>`;
     
     html += `
