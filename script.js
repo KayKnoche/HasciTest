@@ -220,9 +220,8 @@ async function checkPackstationCompatibility() {
         pkg.length > 60 || pkg.width > 40 || pkg.height > 35
     );
     
-    // --- WICHTIG: STATISCHE CORRELATION ID WIE IN POSTMAN ---
-    // NICHT dynamisch mit Timestamp, sondern statisch "TestDemo"
-    const correlationId = "TestDemo";
+    // --- WICHTIG: STATISCHE CORRELATION ID (wie in Postman) ---
+    const correlationId = "TestDemo";  // <-- STATISCH!
     lastCorrelationId = correlationId;
     console.log(`🆔 Correlation ID: ${correlationId} (STATISCH wie in Postman)`);
     
@@ -266,7 +265,8 @@ async function checkPackstationCompatibility() {
     }
     
     // --- CORS-PROXY NUR FÜR DEN ERSTEN CALL ---
-    const WORKER_URL = 'https://dein-worker-name.workers.dev'; // HIER EINTRAGEN
+    // HIER DEINE WORKER-URL EINTRAGEN (NACH DEM DEPLOY)
+    const WORKER_URL = 'https://dein-worker-name.workers.dev';
     const USE_PROXY = false; // Auf true setzen wenn Worker verfügbar
     
     const firstApiUrl = USE_PROXY ? `${WORKER_URL}?url=${encodeURIComponent(targetUrl)}` : targetUrl;
