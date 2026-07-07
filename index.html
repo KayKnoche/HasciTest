@@ -7,111 +7,234 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <h1>📦 Packstation-Check</h1>
-        <p>Prüfen Sie, ob Ihre Pakete in eine Packstation passen</p>
-        
-        <!-- Schritt 1: Leitcode eingeben -->
-        <div class="section">
-            <h2>1. Leitcode eingeben</h2>
-            <div class="input-group">
-                <input type="text" id="leitcodeInput" placeholder="z.B. 53113032075" maxlength="11">
-                <button onclick="parseLeitcode()">Adresse laden</button>
-            </div>
-            <div id="addressPreview" class="address-preview" style="display:none;">
-                <p><strong>📍 Adresse:</strong> <span id="displayPlz">---</span> - Straße <span id="displayStreet">---</span>, Nr. <span id="displayHn">---</span></p>
-            </div>
-        </div>
-
-        <!-- Schritt 2: Pakete konfigurieren -->
-        <div class="section">
-            <h2>2. Pakete zusammenstellen</h2>
+    <!-- LOGIN OVERLAY -->
+    <div id="loginOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);z-index:9999;display:flex;justify-content:center;align-items:center;">
+        <div style="background:white;padding:40px;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,0.3);max-width:400px;width:90%;">
+            <h2 style="text-align:center;color:#333;margin-bottom:10px;">🔐 Zugang erforderlich</h2>
+            <p style="text-align:center;color:#666;margin-bottom:30px;">Bitte melden Sie sich an</p>
             
-            <div class="package-config">
-                <div class="package-type">
-                    <h3>📦 Pakettyp</h3>
-                    <select id="packageType" onchange="updatePackageDimensions()">
-                        <option value="XS">XS (Mini)</option>
-                        <option value="S" selected>S (Small)</option>
-                        <option value="M">M (Medium)</option>
-                        <option value="L">L (Large)</option>
-                        <option value="XL">XL (Extra Large)</option>
-                    </select>
-                </div>
-                
-                <div class="package-dimensions">
-                    <h3>📐 Maße (cm)</h3>
-                    <div class="dimension-inputs">
-                        <label>Länge: <input type="number" id="pkgLength" value="30" min="1" step="0.5"></label>
-                        <label>Breite: <input type="number" id="pkgWidth" value="20" min="1" step="0.5"></label>
-                        <label>Höhe: <input type="number" id="pkgHeight" value="15" min="1" step="0.5"></label>
-                    </div>
-                </div>
-                
-                <div class="package-actions">
-                    <button onclick="addPackage()" class="btn-primary">➕ Paket hinzufügen</button>
-                    <button onclick="addPresetPackages()" class="btn-secondary">📋 Beispielpakete laden</button>
-                </div>
+            <div style="margin-bottom:15px;">
+                <label style="display:block;margin-bottom:5px;color:#555;font-weight:500;">Benutzername</label>
+                <input type="text" id="loginUsername" placeholder="Benutzername eingeben" style="width:100%;padding:12px;border:2px solid #ddd;border-radius:10px;font-size:16px;">
             </div>
-        </div>
-
-        <!-- Schritt 3: Paketliste -->
-        <div class="section">
-            <h2>3. Ihre Pakete (<span id="packageCount">0</span>)</h2>
-            <div id="packageList" class="package-list">
-                <p class="empty-message">Noch keine Pakete hinzugefügt.</p>
+            
+            <div style="margin-bottom:20px;">
+                <label style="display:block;margin-bottom:5px;color:#555;font-weight:500;">Passwort</label>
+                <input type="password" id="loginPassword" placeholder="Passwort eingeben" style="width:100%;padding:12px;border:2px solid #ddd;border-radius:10px;font-size:16px;">
             </div>
-            <div class="list-actions">
-                <button onclick="clearPackages()" class="btn-danger">🗑️ Alle löschen</button>
-            </div>
-        </div>
-
-        <!-- Schritt 4: Prüfung starten -->
-        <div class="section">
-            <button onclick="checkPackstationCompatibility()" class="btn-check" id="checkBtn">
-                🔍 Packstation-Kompatibilität prüfen
+            
+            <button onclick="checkLogin()" style="width:100%;padding:15px;background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);color:white;border:none;border-radius:10px;font-size:18px;font-weight:bold;cursor:pointer;transition:all 0.3s;">
+                🔑 Anmelden
             </button>
+            
+            <div id="loginError" style="display:none;margin-top:15px;padding:10px;background:#f8d7da;border-radius:8px;color:#721c24;text-align:center;font-size:14px;">
+                ❌ Ungültiger Benutzername oder Passwort
+            </div>
         </div>
-
-        <!-- Ergebnisbereich -->
-        <div id="result" class="result" style="display:none;"></div>
     </div>
 
-    <!-- Skript-Einbindung mit Überprüfung -->
+    <!-- HAUPTINHALT -->
+    <div id="mainContent" style="display:none;">
+        <div class="container">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+                <div>
+                    <h1 style="margin:0;">📦 Packstation-Check</h1>
+                </div>
+                <div style="display:flex;align-items:center;gap:15px;flex-wrap:wrap;">
+                    <!-- Umgebungs-Schalter -->
+                    <div style="display:flex;align-items:center;gap:10px;background:#f8f9fa;padding:8px 15px;border-radius:10px;">
+                        <span style="font-size:14px;font-weight:500;color:#555;">🌍 Environment:</span>
+                        <label style="position:relative;display:inline-block;width:60px;height:34px;cursor:pointer;">
+                            <input type="checkbox" id="envToggle" onchange="toggleEnvironment()" style="opacity:0;width:0;height:0;">
+                            <span id="envSlider" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#ccc;transition:.4s;border-radius:34px;">
+                                <span id="envLabel" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:white;font-size:11px;font-weight:bold;text-shadow:0 1px 2px rgba(0,0,0,0.3);">PROD</span>
+                            </span>
+                            <span id="envIndicator" style="position:absolute;height:26px;width:26px;left:4px;bottom:4px;background:white;transition:.4s;border-radius:50%;"></span>
+                        </label>
+                        <span id="envStatus" style="font-size:13px;font-weight:600;padding:4px 12px;border-radius:6px;background:#28a745;color:white;">PRODUCTION</span>
+                    </div>
+                    
+                    <!-- Logout Button -->
+                    <button onclick="logout()" style="padding:8px 16px;background:#dc3545;color:white;border:none;border-radius:8px;cursor:pointer;font-size:14px;transition:all 0.3s;">
+                        🚪 Abmelden
+                    </button>
+                </div>
+            </div>
+            <p>Prüfen Sie, ob Ihre Pakete in eine Packstation passen</p>
+            
+            <!-- Schritt 1: Leitcode eingeben -->
+            <div class="section">
+                <h2>1. Leitcode eingeben</h2>
+                <div class="input-group">
+                    <input type="text" id="leitcodeInput" placeholder="z.B. 53113032075" maxlength="11">
+                    <button onclick="parseLeitcode()">Adresse laden</button>
+                </div>
+                <div id="addressPreview" class="address-preview" style="display:none;">
+                    <p><strong>📍 Adresse:</strong> <span id="displayPlz">---</span> - Straße <span id="displayStreet">---</span>, Nr. <span id="displayHn">---</span></p>
+                </div>
+            </div>
+
+            <!-- Schritt 2: Pakete konfigurieren -->
+            <div class="section">
+                <h2>2. Pakete zusammenstellen</h2>
+                
+                <div class="package-config">
+                    <div class="package-type">
+                        <h3>📦 Pakettyp</h3>
+                        <select id="packageType" onchange="updatePackageDimensions()">
+                            <option value="XS">XS (Mini)</option>
+                            <option value="S" selected>S (Small)</option>
+                            <option value="M">M (Medium)</option>
+                            <option value="L">L (Large)</option>
+                            <option value="XL">XL (Extra Large)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="package-dimensions">
+                        <h3>📐 Maße (cm)</h3>
+                        <div class="dimension-inputs">
+                            <label>Länge: <input type="number" id="pkgLength" value="30" min="1" step="0.5"></label>
+                            <label>Breite: <input type="number" id="pkgWidth" value="20" min="1" step="0.5"></label>
+                            <label>Höhe: <input type="number" id="pkgHeight" value="15" min="1" step="0.5"></label>
+                        </div>
+                    </div>
+                    
+                    <div class="package-actions">
+                        <button onclick="addPackage()" class="btn-primary">➕ Paket hinzufügen</button>
+                        <button onclick="addPresetPackages()" class="btn-secondary">📋 Beispielpakete laden</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Schritt 3: Paketliste -->
+            <div class="section">
+                <h2>3. Ihre Pakete (<span id="packageCount">0</span>)</h2>
+                <div id="packageList" class="package-list">
+                    <p class="empty-message">Noch keine Pakete hinzugefügt.</p>
+                </div>
+                <div class="list-actions">
+                    <button onclick="clearPackages()" class="btn-danger">🗑️ Alle löschen</button>
+                </div>
+            </div>
+
+            <!-- Schritt 4: Prüfung starten -->
+            <div class="section">
+                <button onclick="checkPackstationCompatibility()" class="btn-check" id="checkBtn">
+                    🔍 Packstation-Kompatibilität prüfen
+                </button>
+            </div>
+
+            <!-- Ergebnisbereich -->
+            <div id="result" class="result" style="display:none;"></div>
+        </div>
+    </div>
+
+    <!-- Skript-Einbindung -->
     <script src="script.js"></script>
     <script>
-        // Überprüfung, ob die Skripte korrekt geladen wurden
+        // --- LOGIN KONFIGURATION ---
+        const VALID_USERS = {
+            'admin': 'admin123',
+            'user': 'user123',
+            'demo': 'demo123'
+        };
+
+        function checkLogin() {
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value.trim();
+            const errorDiv = document.getElementById('loginError');
+            
+            if (username && password && VALID_USERS[username] === password) {
+                errorDiv.style.display = 'none';
+                document.getElementById('loginOverlay').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+                
+                sessionStorage.setItem('loggedIn', 'true');
+                sessionStorage.setItem('username', username);
+                
+                console.log(`✅ Benutzer ${username} erfolgreich angemeldet`);
+            } else {
+                errorDiv.style.display = 'block';
+                document.getElementById('loginPassword').value = '';
+                document.getElementById('loginPassword').focus();
+            }
+        }
+
+        function logout() {
+            sessionStorage.removeItem('loggedIn');
+            sessionStorage.removeItem('username');
+            document.getElementById('loginOverlay').style.display = 'flex';
+            document.getElementById('mainContent').style.display = 'none';
+            document.getElementById('loginUsername').value = '';
+            document.getElementById('loginPassword').value = '';
+            document.getElementById('loginError').style.display = 'none';
+            console.log('👋 Benutzer abgemeldet');
+        }
+
+        // --- ENVIRONMENT TOGGLE ---
+        let currentEnv = 'prod'; // 'prod' oder 'stg'
+
+        function toggleEnvironment() {
+            const toggle = document.getElementById('envToggle');
+            const slider = document.getElementById('envSlider');
+            const indicator = document.getElementById('envIndicator');
+            const status = document.getElementById('envStatus');
+            const label = document.getElementById('envLabel');
+            
+            if (toggle.checked) {
+                // Stage
+                currentEnv = 'stg';
+                slider.style.background = '#ffc107';
+                label.textContent = 'STG';
+                status.textContent = 'STAGING';
+                status.style.background = '#ffc107';
+                status.style.color = '#333';
+                indicator.style.transform = 'translateX(26px)';
+                console.log('🔄 Umgebung auf STAGING umgeschaltet');
+            } else {
+                // Production
+                currentEnv = 'prod';
+                slider.style.background = '#ccc';
+                label.textContent = 'PROD';
+                status.textContent = 'PRODUCTION';
+                status.style.background = '#28a745';
+                status.style.color = 'white';
+                indicator.style.transform = 'translateX(0px)';
+                console.log('🔄 Umgebung auf PRODUCTION umgeschaltet');
+            }
+        }
+
+        // Funktion zum Abrufen der aktuellen Umgebung (wird von script.js verwendet)
+        function getCurrentEnvironment() {
+            return currentEnv;
+        }
+
+        // --- Login-Initialisierung ---
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('✅ index.html geladen');
+            // Prüfen ob bereits eingeloggt
+            if (sessionStorage.getItem('loggedIn') === 'true') {
+                document.getElementById('loginOverlay').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+            }
             
-            // Prüfen ob alle Funktionen verfügbar sind
-            const functions = ['parseLeitcode', 'updatePackageDimensions', 'addPackage', 'addPresetPackages', 'clearPackages', 'checkPackstationCompatibility'];
-            let allLoaded = true;
-            
-            functions.forEach(func => {
-                if (typeof window[func] === 'function') {
-                    console.log(`✅ Funktion ${func} verfügbar`);
-                } else {
-                    console.error(`❌ Funktion ${func} NICHT verfügbar`);
-                    allLoaded = false;
+            // Enter-Taste für Login-Felder
+            document.getElementById('loginUsername').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    document.getElementById('loginPassword').focus();
                 }
             });
             
-            if (!allLoaded) {
-                console.error('⚠️ Einige Funktionen sind nicht verfügbar! Bitte prüfe die script.js Datei.');
-                document.getElementById('result').className = 'result error';
-                document.getElementById('result').innerHTML = `
-                    <strong>❌ Fehler beim Laden</strong>
-                    <p>Die script.js Datei konnte nicht korrekt geladen werden. Bitte überprüfe:</p>
-                    <ul style="margin-left:20px;margin-top:10px;">
-                        <li>Ob die Datei script.js im gleichen Ordner liegt wie index.html</li>
-                        <li>Ob es Syntaxfehler in der script.js gibt (Konsole prüfen)</li>
-                        <li>Ob der Dateiname korrekt ist (Groß-/Kleinschreibung beachten)</li>
-                    </ul>
-                `;
-                document.getElementById('result').style.display = 'block';
-            }
+            document.getElementById('loginPassword').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    checkLogin();
+                }
+            });
+            
+            // Standard: PROD
+            currentEnv = 'prod';
         });
+
+        console.log('✅ Login-System & Environment-Toggle geladen');
     </script>
 </body>
 </html>
