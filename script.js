@@ -266,64 +266,51 @@ async function checkPackstationCompatibility() {
         console.log('🌍 Verwende PRODUCTION Umgebung');
     }
     
-    // --- CORS-PROXY: Versuche mehrere Proxies ---
-    const proxies = [
-        'https://corsproxy.io/?',
-        'https://api.allorigins.win/raw?url=',
-        'https://cors-anywhere.herokuapp.com/'
-    ];
+    // --- CORS-PROXY: Verwende den funktionierenden Proxy ---
+    const proxyUrl = 'https://corsproxy.io/?';
     
-    let lastError = null;
-    let success = false;
+    // Erster Call mit Proxy
+    const firstApiUrl = proxyUrl + encodeURIComponent(targetUrl);
+    console.log('📤 1. Call URL (mit Proxy):', firstApiUrl);
+    console.log('📦 Payload:', JSON.stringify(payload, null, 2));
     
-    for (let proxyUrl of proxies) {
-        try {
-            const apiUrl = proxyUrl + encodeURIComponent(targetUrl);
-            console.log(`📤 Versuche Proxy: ${proxyUrl}`);
-            console.log('📤 URL:', apiUrl);
-            
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': authHeader,
-                    'Accept': 'application/json',
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache',
-                    'Expires': '0'
-                },
-                body: JSON.stringify(payload)
-            });
-            
-            console.log(`📥 Status (${proxyUrl}):`, response.status);
-            
-            if (response.ok) {
-                const data = await response.json();
-                console.log('✅ Antwort (1. Call):', data);
-                
-                firstApiResponse = data;
-                showFirstApiResult(resultDiv, compatiblePackages, incompatiblePackages, data);
-                
-                // Zweiten Call direkt (ohne Proxy)
-                console.log('📤 2. Call URL (direkt):', secondUrl);
-                await callSecondWebService(resultDiv, secondUrl, environment);
-                success = true;
-                break;
-            } else {
-                const errorText = await response.text();
-                console.warn(`⚠️ Proxy ${proxyUrl} fehlgeschlagen:`, response.status, errorText);
-                lastError = new Error(`HTTP ${response.status}: ${errorText}`);
-            }
-        } catch (error) {
-            console.warn(`❌ Proxy ${proxyUrl} Fehler:`, error.message);
-            lastError = error;
+    try {
+        const response = await fetch(firstApiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': authHeader,
+                'Accept': 'application/json',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        console.log('📥 Status (1. Call):', response.status);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Fehler (1. Call):', errorText);
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
-    }
-    
-    if (!success) {
-        console.error('❌ Alle Proxies fehlgeschlagen');
+        
+        const data = await response.json();
+        console.log('✅ Antwort (1. Call):', data);
+        
+        firstApiResponse = data;
+        showFirstApiResult(resultDiv, compatiblePackages, incompatiblePackages, data);
+        
+        // --- ZWEITER CALL: AUCH MIT PROXY (weil CORS) ---
+        const secondApiUrl = proxyUrl + encodeURIComponent(secondUrl);
+        console.log('📤 2. Call URL (mit Proxy):', secondApiUrl);
+        await callSecondWebService(resultDiv, secondApiUrl, environment);
+        
+    } catch (error) {
+        console.error('❌ Fehler beim 1. Call:', error);
         firstApiResponse = null;
-        showLocalResult(resultDiv, compatiblePackages, incompatiblePackages, lastError ? lastError.message : 'Alle Proxies fehlgeschlagen');
+        showLocalResult(resultDiv, compatiblePackages, incompatiblePackages, error.message);
     }
 }
 
@@ -604,7 +591,6 @@ function showLocalResult(resultDiv, compatible, incompatible, errorMessage) {
             <strong style="color:#856404;">ℹ️ Hinweis:</strong>
             <p style="color:#856404;margin-top:5px;">Der Service ist nicht erreichbar (${errorMessage}).</p>
             <p style="color:#856404;">Die Prüfung basiert auf den lokalen Packstations-Maßen (max. 60×40×35 cm).</p>
-            <p style="color:#856404;font-size:12px;margin-top:5px;">Tipp: Versuche die STG-Umgebung oder installiere die "Moesif CORS" Browser-Erweiterung.</p>
         </div>
     `;
     
@@ -671,4 +657,4 @@ console.log('✅ script.js vollständig geladen!');
 console.log('📌 Verwendet HASCI/03 (wie in Postman)');
 console.log('📌 STATISCHE Correlation ID: TestDemo');
 console.log('📌 Authentifizierung über Login-Formular');
-console.log('📌 CORS-Proxy: wird automatisch gewählt');
+console.log('📌 CORS-Proxy: corsproxy.io (für beide Calls)');
