@@ -5,7 +5,7 @@ let packages = [];
 let parsedAddress = null;
 let firstApiResponse = null;
 let secondApiResponse = null;
-let lastCorrelationId = null; // Speichert die letzte Correlation ID
+let lastCorrelationId = null;
 
 // --- Paket-Definitionen (DHL-Standard) ---
 const PACKAGE_TYPES = {
@@ -41,7 +41,6 @@ function toggleEnvironment() {
         }
         if (indicator) indicator.style.transform = 'translateX(26px)';
         console.log('🔄 Umgebung auf STAGING umgeschaltet');
-        // Bei Umgebungswechsel: Ergebnis zurücksetzen
         resetResult();
     } else {
         currentEnv = 'prod';
@@ -54,7 +53,6 @@ function toggleEnvironment() {
         }
         if (indicator) indicator.style.transform = 'translateX(0px)';
         console.log('🔄 Umgebung auf PRODUCTION umgeschaltet');
-        // Bei Umgebungswechsel: Ergebnis zurücksetzen
         resetResult();
     }
 }
@@ -67,7 +65,6 @@ function resetResult() {
         resultDiv.className = 'result';
         resultDiv.innerHTML = '';
     }
-    // Gespeicherte API-Responses zurücksetzen
     firstApiResponse = null;
     secondApiResponse = null;
     lastCorrelationId = null;
@@ -77,8 +74,6 @@ function resetResult() {
 // --- 1. Leitcode parsen ---
 function parseLeitcode() {
     console.log('🔍 parseLeitcode() aufgerufen');
-    
-    // RESET: Vorherige Ergebnisse löschen
     resetResult();
     
     const input = document.getElementById('leitcodeInput');
@@ -147,7 +142,7 @@ function addPackage() {
 // --- 4. Beispielpakete laden ---
 function addPresetPackages() {
     console.log('📋 addPresetPackages() aufgerufen');
-    resetResult(); // Ergebnis zurücksetzen
+    resetResult();
     
     const preset = [
         { length: 30, width: 20, height: 15 },
@@ -165,7 +160,7 @@ function removePackage(index) {
     console.log(`🗑️ removePackage(${index}) aufgerufen`);
     packages.splice(index, 1);
     renderPackageList();
-    resetResult(); // Ergebnis zurücksetzen
+    resetResult();
 }
 
 // --- 6. Alle Pakete löschen ---
@@ -173,7 +168,7 @@ function clearPackages() {
     console.log('🗑️ clearPackages() aufgerufen');
     packages = [];
     renderPackageList();
-    resetResult(); // Ergebnis zurücksetzen
+    resetResult();
 }
 
 // --- 7. Paketliste rendern ---
@@ -225,7 +220,6 @@ async function checkPackstationCompatibility() {
         pkg.length > 60 || pkg.width > 40 || pkg.height > 35
     );
     
-    // EINDEUTIGE CORRELATION ID - immer neu!
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(7);
     const correlationId = `TestDemo_${timestamp}_${random}`;
@@ -271,8 +265,14 @@ async function checkPackstationCompatibility() {
         console.log('🌍 Verwende PRODUCTION Umgebung');
     }
     
-    // DIREKTER CALL - OHNE PROXY
-    const apiUrl = targetUrl;
+    // --- CORS-PROXY mit Header-Unterstützung ---
+    // Verwende einen Proxy der den Authorization-Header durchlässt
+    const USE_PROXY = true;
+    const proxyUrl = 'https://corsproxy.io/?';
+    // Alternativ: 'https://api.allorigins.win/raw?url='
+    // Oder: 'https://cors-anywhere.herokuapp.com/'
+    
+    const apiUrl = USE_PROXY ? `${proxyUrl}${encodeURIComponent(targetUrl)}` : targetUrl;
     console.log('📤 URL (1. Call):', apiUrl);
     console.log('📦 Adresse:', parsedAddress.plz, parsedAddress.streetCode, parsedAddress.houseNumber);
     
@@ -304,14 +304,15 @@ async function checkPackstationCompatibility() {
         firstApiResponse = data;
         showFirstApiResult(resultDiv, compatiblePackages, incompatiblePackages, data);
         
-        // Zweiten Call
-        await callSecondWebService(resultDiv, secondUrl, environment);
+        // Zweiten Call mit Proxy
+        const secondApiUrl = USE_PROXY ? `${proxyUrl}${encodeURIComponent(secondUrl)}` : secondUrl;
+        await callSecondWebService(resultDiv, secondApiUrl, environment);
         
     } catch (error) {
         console.error('❌ Fehler beim 1. Call:', error);
         firstApiResponse = null;
         
-        // FALLBACK: Lokale Prüfung wenn API nicht erreichbar
+        // FALLBACK: Lokale Prüfung
         showLocalResult(resultDiv, compatiblePackages, incompatiblePackages, error.message);
     }
 }
@@ -586,6 +587,7 @@ function showLocalResult(resultDiv, compatible, incompatible, errorMessage) {
             <strong style="color:#856404;">ℹ️ Hinweis:</strong>
             <p style="color:#856404;margin-top:5px;">Der Service ist nicht erreichbar (${errorMessage}).</p>
             <p style="color:#856404;">Die Prüfung basiert auf den lokalen Packstations-Maßen (max. 60×40×35 cm).</p>
+            <p style="color:#856404;font-size:12px;margin-top:5px;">Tipp: Versuche die STG-Umgebung oder installiere die "Moesif CORS" Browser-Erweiterung.</p>
         </div>
     `;
     
