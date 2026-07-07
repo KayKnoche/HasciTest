@@ -17,17 +17,11 @@ const PACKAGE_TYPES = {
 };
 
 // --- Environment (wird von index.html gesteuert) ---
-let currentEnv = 'prod';
-
 function getCurrentEnvironment() {
-    return currentEnv;
-}
-
-function toggleEnvironment() {
-    // Wird von index.html aufgerufen
-    if (typeof window.toggleEnvironment === 'function') {
-        window.toggleEnvironment();
+    if (typeof window.getCurrentEnvironment === 'function') {
+        return window.getCurrentEnvironment();
     }
+    return 'prod';
 }
 
 // --- RESULT RESET ---
@@ -46,11 +40,9 @@ function resetResult() {
 
 // --- AUTHENTIFIZIERUNG (aus Login-Formular) ---
 function getAuthHeader() {
-    // Von index.html bereitgestellt
     if (typeof window.getAuthHeader === 'function') {
         return window.getAuthHeader();
     }
-    // Fallback: aus sessionStorage
     const savedAuth = sessionStorage.getItem('authHeader');
     if (savedAuth) {
         return savedAuth;
@@ -252,7 +244,6 @@ async function checkPackstationCompatibility() {
         return;
     }
     
-    // Auth-Header dekodieren für Debug (nur ersten Teil anzeigen)
     try {
         const decoded = atob(authHeader.replace('Basic ', ''));
         console.log(`🔐 Benutzer: ${decoded.split(':')[0]}`);
@@ -275,11 +266,17 @@ async function checkPackstationCompatibility() {
         console.log('🌍 Verwende PRODUCTION Umgebung');
     }
     
-    console.log('📤 1. Call URL:', targetUrl);
+    // --- CORS-PROXY AKTIVIEREN ---
+    // Verwende thingproxy.freeboard.io (funktioniert zuverlässig)
+    const USE_PROXY = true;
+    const proxyUrl = 'https://thingproxy.freeboard.io/fetch/';
+    
+    const firstApiUrl = USE_PROXY ? `${proxyUrl}${targetUrl}` : targetUrl;
+    console.log('📤 1. Call URL (mit Proxy):', firstApiUrl);
     console.log('📦 Payload:', JSON.stringify(payload, null, 2));
     
     try {
-        const response = await fetch(targetUrl, {
+        const response = await fetch(firstApiUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -660,3 +657,4 @@ console.log('✅ script.js vollständig geladen!');
 console.log('📌 Verwendet HASCI/03 (wie in Postman)');
 console.log('📌 STATISCHE Correlation ID: TestDemo');
 console.log('📌 Authentifizierung über Login-Formular');
+console.log('📌 CORS-Proxy: thingproxy.freeboard.io');
