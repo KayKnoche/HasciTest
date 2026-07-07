@@ -7,15 +7,15 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- LOGIN OVERLAY -->
+    <!-- LOGIN OVERLAY - JETZT MIT USERNAME/PASSWORD FELDERN -->
     <div id="loginOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);z-index:9999;display:flex;justify-content:center;align-items:center;">
         <div style="background:white;padding:40px;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,0.3);max-width:400px;width:90%;">
-            <h2 style="text-align:center;color:#333;margin-bottom:10px;">🔐 Zugang erforderlich</h2>
-            <p style="text-align:center;color:#666;margin-bottom:30px;">Bitte melden Sie sich an</p>
+            <h2 style="text-align:center;color:#333;margin-bottom:5px;">🔐 Zugang erforderlich</h2>
+            <p style="text-align:center;color:#666;margin-bottom:25px;font-size:14px;">Bitte melden Sie sich mit Ihren DHL-Credentials an</p>
             
             <div style="margin-bottom:15px;">
                 <label style="display:block;margin-bottom:5px;color:#555;font-weight:500;">Benutzername</label>
-                <input type="text" id="loginUsername" placeholder="Benutzername eingeben" style="width:100%;padding:12px;border:2px solid #ddd;border-radius:10px;font-size:16px;">
+                <input type="text" id="loginUsername" placeholder="z.B. Kay Knoche" style="width:100%;padding:12px;border:2px solid #ddd;border-radius:10px;font-size:16px;">
             </div>
             
             <div style="margin-bottom:20px;">
@@ -29,6 +29,10 @@
             
             <div id="loginError" style="display:none;margin-top:15px;padding:10px;background:#f8d7da;border-radius:8px;color:#721c24;text-align:center;font-size:14px;">
                 ❌ Ungültiger Benutzername oder Passwort
+            </div>
+            
+            <div id="loginInfo" style="margin-top:15px;padding:10px;background:#e3f2fd;border-radius:8px;color:#004085;text-align:center;font-size:12px;">
+                ⚠️ Die Credentials werden nur lokal im Browser gespeichert und nicht übertragen.
             </div>
         </div>
     </div>
@@ -60,6 +64,13 @@
                     </button>
                 </div>
             </div>
+            
+            <!-- Benutzerinfo -->
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;padding:10px 15px;background:#f1f3f5;border-radius:8px;flex-wrap:wrap;gap:5px;">
+                <span style="font-size:13px;color:#555;">👤 Angemeldet als: <strong id="displayUsername">---</strong></span>
+                <span style="font-size:12px;color:#999;">🔐 Basic Auth aktiv</span>
+            </div>
+            
             <p>Prüfen Sie, ob Ihre Pakete in eine Packstation passen</p>
             
             <!-- Schritt 1: Leitcode eingeben -->
@@ -132,26 +143,36 @@
     <script src="script.js"></script>
     <script>
         // --- LOGIN KONFIGURATION ---
-        const VALID_USERS = {
-            'admin': 'admin123',
-            'user': 'user123',
-            'demo': 'demo123'
-        };
+        // Diese Credentials werden für Basic Auth verwendet
+        let authUsername = '';
+        let authPassword = '';
+        let authHeader = '';
 
         function checkLogin() {
             const username = document.getElementById('loginUsername').value.trim();
             const password = document.getElementById('loginPassword').value.trim();
             const errorDiv = document.getElementById('loginError');
             
-            if (username && password && VALID_USERS[username] === password) {
+            if (username && password) {
+                // Credentials speichern
+                authUsername = username;
+                authPassword = password;
+                authHeader = 'Basic ' + btoa(username + ':' + password);
+                
                 errorDiv.style.display = 'none';
                 document.getElementById('loginOverlay').style.display = 'none';
                 document.getElementById('mainContent').style.display = 'block';
                 
+                // Benutzername anzeigen
+                document.getElementById('displayUsername').textContent = username;
+                
+                // Session speichern
                 sessionStorage.setItem('loggedIn', 'true');
                 sessionStorage.setItem('username', username);
+                sessionStorage.setItem('authHeader', authHeader);
                 
                 console.log(`✅ Benutzer ${username} erfolgreich angemeldet`);
+                console.log(`🔐 Auth Header: ${authHeader.substring(0, 30)}...`);
             } else {
                 errorDiv.style.display = 'block';
                 document.getElementById('loginPassword').value = '';
@@ -160,22 +181,94 @@
         }
 
         function logout() {
+            // Credentials löschen
+            authUsername = '';
+            authPassword = '';
+            authHeader = '';
+            
             sessionStorage.removeItem('loggedIn');
             sessionStorage.removeItem('username');
+            sessionStorage.removeItem('authHeader');
+            
             document.getElementById('loginOverlay').style.display = 'flex';
             document.getElementById('mainContent').style.display = 'none';
             document.getElementById('loginUsername').value = '';
             document.getElementById('loginPassword').value = '';
             document.getElementById('loginError').style.display = 'none';
+            
+            // Ergebnis zurücksetzen
+            resetResult();
+            
             console.log('👋 Benutzer abgemeldet');
+        }
+
+        // Funktion für script.js um Auth-Header zu bekommen
+        function getAuthHeader() {
+            return authHeader;
+        }
+
+        function getAuthUsername() {
+            return authUsername;
+        }
+
+        // --- ENVIRONMENT TOGGLE ---
+        let currentEnv = 'prod';
+
+        function getCurrentEnvironment() {
+            return currentEnv;
+        }
+
+        function toggleEnvironment() {
+            const toggle = document.getElementById('envToggle');
+            const slider = document.getElementById('envSlider');
+            const indicator = document.getElementById('envIndicator');
+            const status = document.getElementById('envStatus');
+            const label = document.getElementById('envLabel');
+            
+            if (toggle && toggle.checked) {
+                currentEnv = 'stg';
+                if (slider) slider.style.background = '#ffc107';
+                if (label) label.textContent = 'STG';
+                if (status) {
+                    status.textContent = 'STAGING';
+                    status.style.background = '#ffc107';
+                    status.style.color = '#333';
+                }
+                if (indicator) indicator.style.transform = 'translateX(26px)';
+                console.log('🔄 Umgebung auf STAGING umgeschaltet');
+                resetResult();
+            } else {
+                currentEnv = 'prod';
+                if (slider) slider.style.background = '#28a745';
+                if (label) label.textContent = 'PROD';
+                if (status) {
+                    status.textContent = 'PRODUCTION';
+                    status.style.background = '#28a745';
+                    status.style.color = 'white';
+                }
+                if (indicator) indicator.style.transform = 'translateX(0px)';
+                console.log('🔄 Umgebung auf PRODUCTION umgeschaltet');
+                resetResult();
+            }
         }
 
         // --- Login-Initialisierung ---
         document.addEventListener('DOMContentLoaded', function() {
             // Prüfen ob bereits eingeloggt
             if (sessionStorage.getItem('loggedIn') === 'true') {
-                document.getElementById('loginOverlay').style.display = 'none';
-                document.getElementById('mainContent').style.display = 'block';
+                const savedUsername = sessionStorage.getItem('username');
+                const savedAuth = sessionStorage.getItem('authHeader');
+                
+                if (savedUsername && savedAuth) {
+                    authUsername = savedUsername;
+                    authHeader = savedAuth;
+                    
+                    document.getElementById('loginOverlay').style.display = 'none';
+                    document.getElementById('mainContent').style.display = 'block';
+                    document.getElementById('displayUsername').textContent = savedUsername;
+                    
+                    console.log(`✅ Automatisch angemeldet als ${savedUsername}`);
+                }
             }
             
             // Enter-Taste für Login-Felder
@@ -190,9 +283,19 @@
                     checkLogin();
                 }
             });
+            
+            // Standard: PROD
+            currentEnv = 'prod';
+            
+            // Initiale Paketgröße setzen (falls vorhanden)
+            if (typeof updatePackageDimensions === 'function') {
+                updatePackageDimensions();
+            }
         });
 
-        console.log('✅ Login-System geladen');
+        console.log('✅ Login-System & Environment-Toggle geladen');
+        console.log('💡 Benutzername und Passwort werden für Basic Auth verwendet');
+        console.log('🔐 Die Credentials bleiben lokal im Browser');
     </script>
 </body>
 </html>
