@@ -17,7 +17,7 @@ const PACKAGE_TYPES = {
 };
 
 // --- Environment ---
-let currentEnv = 'prod';
+let currentEnv = 'stg'; // Standard auf STG setzen
 
 function getCurrentEnvironment() {
     return currentEnv;
@@ -44,7 +44,7 @@ function toggleEnvironment() {
         resetResult();
     } else {
         currentEnv = 'prod';
-        if (slider) slider.style.background = '#ccc';
+        if (slider) slider.style.background = '#28a745';
         if (label) label.textContent = 'PROD';
         if (status) {
             status.textContent = 'PRODUCTION';
@@ -220,8 +220,8 @@ async function checkPackstationCompatibility() {
         pkg.length > 60 || pkg.width > 40 || pkg.height > 35
     );
     
-    // --- WICHTIG: STATISCHE CORRELATION ID (wie in Postman) ---
-    const correlationId = "TestDemo";  // <-- STATISCH!
+    // --- STATISCHE CORRELATION ID (wie in Postman) ---
+    const correlationId = "TestDemo";
     lastCorrelationId = correlationId;
     console.log(`🆔 Correlation ID: ${correlationId} (STATISCH wie in Postman)`);
     
@@ -264,13 +264,16 @@ async function checkPackstationCompatibility() {
         console.log('🌍 Verwende PRODUCTION Umgebung');
     }
     
-    // --- CORS-PROXY NUR FÜR DEN ERSTEN CALL ---
-    // HIER DEINE WORKER-URL EINTRAGEN (NACH DEM DEPLOY)
-    const WORKER_URL = 'https://dein-worker-name.workers.dev';
-    const USE_PROXY = false; // Auf true setzen wenn Worker verfügbar
+    // --- CORS-PROXY AKTIVIEREN ---
+    // Verwende einen Proxy der Authorization-Header unterstützt
+    const USE_PROXY = true;
+    // Option 1: corsproxy.io (kostenlos, aber manchmal langsam)
+    const proxyUrl = 'https://corsproxy.io/?';
+    // Option 2: allorigins (funktioniert nicht mit Authorization)
+    // const proxyUrl = 'https://api.allorigins.win/raw?url=';
     
-    const firstApiUrl = USE_PROXY ? `${WORKER_URL}?url=${encodeURIComponent(targetUrl)}` : targetUrl;
-    console.log('📤 1. Call URL:', firstApiUrl);
+    const firstApiUrl = USE_PROXY ? `${proxyUrl}${encodeURIComponent(targetUrl)}` : targetUrl;
+    console.log('📤 1. Call URL (mit Proxy):', firstApiUrl);
     console.log('📦 Payload:', JSON.stringify(payload, null, 2));
     
     try {
@@ -301,13 +304,41 @@ async function checkPackstationCompatibility() {
         firstApiResponse = data;
         showFirstApiResult(resultDiv, compatiblePackages, incompatiblePackages, data);
         
-        // --- ZWEITER CALL: DIREKT OHNE PROXY ---
+        // --- ZWEITER CALL: DIREKT OHNE PROXY (keine Authorization nötig) ---
         console.log('📤 2. Call URL (direkt):', secondUrl);
         await callSecondWebService(resultDiv, secondUrl, environment);
         
     } catch (error) {
         console.error('❌ Fehler beim 1. Call:', error);
         firstApiResponse = null;
+        
+        // FALLBACK: Versuche ohne Proxy
+        if (USE_PROXY) {
+            console.log('🔄 Versuche ohne Proxy...');
+            try {
+                const fallbackResponse = await fetch(targetUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authHeader,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (fallbackResponse.ok) {
+                    const data = await fallbackResponse.json();
+                    console.log('✅ Antwort (ohne Proxy):', data);
+                    firstApiResponse = data;
+                    showFirstApiResult(resultDiv, compatiblePackages, incompatiblePackages, data);
+                    await callSecondWebService(resultDiv, secondUrl, environment);
+                    return;
+                }
+            } catch (fallbackError) {
+                console.error('❌ Auch ohne Proxy fehlgeschlagen:', fallbackError);
+            }
+        }
+        
         showLocalResult(resultDiv, compatiblePackages, incompatiblePackages, error.message);
     }
 }
@@ -586,6 +617,7 @@ function showLocalResult(resultDiv, compatible, incompatible, errorMessage) {
             <strong style="color:#856404;">ℹ️ Hinweis:</strong>
             <p style="color:#856404;margin-top:5px;">Der Service ist nicht erreichbar (${errorMessage}).</p>
             <p style="color:#856404;">Die Prüfung basiert auf den lokalen Packstations-Maßen (max. 60×40×35 cm).</p>
+            <p style="color:#856404;font-size:12px;margin-top:5px;">Tipp: Versuche die STG-Umgebung oder installiere die "Moesif CORS" Browser-Erweiterung.</p>
         </div>
     `;
     
