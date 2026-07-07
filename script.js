@@ -181,8 +181,8 @@ async function checkPackstationCompatibility() {
     const apiUrl = useProxy ? `https://cors-anywhere.herokuapp.com/${targetUrl}` : targetUrl;
     
     try {
-        console.log('📤 URL:', apiUrl);
-        console.log('📦 Payload:', JSON.stringify(payload, null, 2));
+        console.log('📤 URL (1. Call):', apiUrl);
+        console.log('📦 Payload (1. Call):', JSON.stringify(payload, null, 2));
         console.log('🔐 Auth:', authHeader);
         
         const response = await fetch(apiUrl, {
@@ -195,11 +195,11 @@ async function checkPackstationCompatibility() {
             body: JSON.stringify(payload)
         });
         
-        console.log('📥 Status:', response.status);
+        console.log('📥 Status (1. Call):', response.status);
         
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('❌ Fehler:', errorText);
+            console.error('❌ Fehler (1. Call):', errorText);
             throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
         
@@ -322,7 +322,7 @@ async function callSecondWebService(resultDiv) {
     
     try {
         console.log('📤 Zweiter Call URL:', secondUrl);
-        console.log('📦 Payload:', JSON.stringify(secondPayload, null, 2));
+        console.log('📦 Payload (2. Call):', JSON.stringify(secondPayload, null, 2));
         
         const response = await fetch(secondUrl, {
             method: 'POST',
@@ -369,62 +369,81 @@ function showFinalResult(resultDiv, data) {
     html += '<hr style="margin:15px 0;">';
     html += '<h4 style="margin:10px 0;">📋 Ergebnisse des 2. WebService-Calls</h4>';
     
-    // Prüfen ob wir Daten haben und sie tabellarisch darstellen können
-    if (data && data.Container && data.Container.Results) {
-        const results = data.Container.Results;
-        
-        if (Array.isArray(results) && results.length > 0) {
-            html += '<div style="overflow-x:auto;margin:10px 0;">';
-            html += '<table style="width:100%;border-collapse:collapse;font-size:14px;">';
-            html += `
-                <thead>
-                    <tr style="background:#667eea;color:white;">
-                        <th style="padding:10px;border:1px solid #ddd;text-align:left;">Outlet ID</th>
-                        <th style="padding:10px;border:1px solid #ddd;text-align:left;">Outlet Type</th>
-                        <th style="padding:10px;border:1px solid #ddd;text-align:right;">Distance (km)</th>
-                        <th style="padding:10px;border:1px solid #ddd;text-align:right;">Utilization Score</th>
-                        <th style="padding:10px;border:1px solid #ddd;text-align:center;">Availability</th>
-                    </tr>
-                </thead>
-                <tbody>
-            `;
-            
-            // Nur die ersten 10 Ergebnisse anzeigen
-            const displayResults = results.slice(0, 10);
-            displayResults.forEach((item, index) => {
-                const rowColor = index % 2 === 0 ? '#f8f9fa' : 'white';
-                const availability = item.Availability || 'N/A';
-                const availabilityColor = availability === 'Available' ? '#28a745' : availability === 'Limited' ? '#ffc107' : '#dc3545';
-                
-                html += `
-                    <tr style="background:${rowColor};">
-                        <td style="padding:10px;border:1px solid #ddd;">${item.OutletID || 'N/A'}</td>
-                        <td style="padding:10px;border:1px solid #ddd;">${item.OutletType || 'N/A'}</td>
-                        <td style="padding:10px;border:1px solid #ddd;text-align:right;">${item.Distance || 'N/A'}</td>
-                        <td style="padding:10px;border:1px solid #ddd;text-align:right;">${item.UtilizationScore || 'N/A'}</td>
-                        <td style="padding:10px;border:1px solid #ddd;text-align:center;">
-                            <span style="background:${availabilityColor};color:white;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:bold;">
-                                ${availability}
-                            </span>
-                        </td>
-                    </tr>
-                `;
-            });
-            
-            html += `
-                </tbody>
-                </table>
-                <p style="margin-top:10px;font-size:12px;color:#666;">
-                    Zeige ${Math.min(displayResults.length, 10)} von ${results.length} Ergebnissen
-                </p>
-            </html>
-            `;
-            html += '</div>';
-        } else {
-            html += '<p style="color: #856404;">ℹ️ Keine Ergebnisse in der Antwort gefunden.</p>';
+    // Prüfen ob wir Daten haben - neue Struktur: ContainerList[0].RankedResults
+    let results = null;
+    
+    if (data && data.Status === 'OK' && data.ContainerList && data.ContainerList.length > 0) {
+        // Durchsuche alle Container nach RankedResults
+        for (let container of data.ContainerList) {
+            if (container.RankedResults && container.RankedResults.length > 0) {
+                results = container.RankedResults;
+                break;
+            }
         }
+    }
+    
+    if (results && results.length > 0) {
+        html += '<div style="overflow-x:auto;margin:10px 0;">';
+        html += '<table style="width:100%;border-collapse:collapse;font-size:14px;">';
+        html += `
+            <thead>
+                <tr style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);color:white;">
+                    <th style="padding:10px;border:1px solid #ddd;text-align:left;">Outlet ID</th>
+                    <th style="padding:10px;border:1px solid #ddd;text-align:left;">Outlet Type</th>
+                    <th style="padding:10px;border:1px solid #ddd;text-align:right;">Distance (m)</th>
+                    <th style="padding:10px;border:1px solid #ddd;text-align:right;">Utilization Score</th>
+                    <th style="padding:10px;border:1px solid #ddd;text-align:center;">Availability</th>
+                    <th style="padding:10px;border:1px solid #ddd;text-align:center;">Rating</th>
+                </tr>
+            </thead>
+            <tbody>
+        `;
+        
+        // Nur die ersten 10 Ergebnisse anzeigen
+        const displayResults = results.slice(0, 10);
+        displayResults.forEach((item, index) => {
+            const rowColor = index % 2 === 0 ? '#f8f9fa' : 'white';
+            const available = item.Available === true;
+            const availabilityText = available ? 'Available' : 'Unavailable';
+            const availabilityColor = available ? '#28a745' : '#dc3545';
+            
+            // OutletType formatieren
+            let outletType = item.OutletType || 'N/A';
+            let typeIcon = '';
+            if (outletType.toLowerCase().includes('parcel')) {
+                typeIcon = '📦 ';
+            } else if (outletType.toLowerCase().includes('post')) {
+                typeIcon = '🏤 ';
+            }
+            
+            html += `
+                <tr style="background:${rowColor};">
+                    <td style="padding:10px;border:1px solid #ddd;">${item.OutletID || 'N/A'}</td>
+                    <td style="padding:10px;border:1px solid #ddd;">${typeIcon}${outletType}</td>
+                    <td style="padding:10px;border:1px solid #ddd;text-align:right;">${item.Distance || 'N/A'}</td>
+                    <td style="padding:10px;border:1px solid #ddd;text-align:right;">${item.UtilizationScore !== undefined ? item.UtilizationScore : 'N/A'}</td>
+                    <td style="padding:10px;border:1px solid #ddd;text-align:center;">
+                        <span style="background:${availabilityColor};color:white;padding:3px 12px;border-radius:12px;font-size:12px;font-weight:bold;">
+                            ${availabilityText}
+                        </span>
+                    </td>
+                    <td style="padding:10px;border:1px solid #ddd;text-align:center;">
+                        ${item.Rating ? '⭐'.repeat(Math.min(parseInt(item.Rating) / 2, 5)) : 'N/A'}
+                    </td>
+                </tr>
+            `;
+        });
+        
+        html += `
+            </tbody>
+            </table>
+            <p style="margin-top:10px;font-size:12px;color:#666;">
+                Zeige ${Math.min(displayResults.length, 10)} von ${results.length} Ergebnissen
+            </p>
+        `;
+        html += '</div>';
     } else {
-        html += '<p style="color: #856404;">ℹ️ Die Antwort des zweiten Calls enthält keine erwarteten Daten.</p>';
+        html += '<p style="color: #856404;">ℹ️ Keine RankedResults in der Antwort gefunden.</p>';
         html += `
             <details>
                 <summary style="cursor:pointer;color:#667eea;">📄 JSON-Antwort (2. Call)</summary>
@@ -438,7 +457,8 @@ function showFinalResult(resultDiv, data) {
         <div style="margin-top:15px;padding:15px;background:#f1f3f5;border-radius:8px;font-size:13px;color:#555;">
             <strong>📌 Zusammenfassung:</strong><br>
             📦 ${packages.length} Pakete | 📍 ${parsedAddress.plz} - ${parsedAddress.streetCode}/${parsedAddress.houseNumber}
-            ${secondApiResponse ? ` | ✅ 2. Call erfolgreich` : ' | ⚠️ 2. Call fehlgeschlagen'}
+            ${secondApiResponse ? ' | ✅ 2. Call erfolgreich' : ' | ⚠️ 2. Call fehlgeschlagen'}
+            ${data && data.Status ? ` | Status: ${data.Status}` : ''}
         </div>
     `;
     
@@ -457,6 +477,7 @@ function showSecondApiError(resultDiv, errorMessage) {
         <div style="margin-top:15px;padding:15px;background:#f8d7da;border-radius:8px;border:1px solid #f5c6cb;">
             <strong style="color:#721c24;">❌ Fehler beim 2. WebService-Call</strong>
             <p style="color:#721c24;margin-top:5px;">${errorMessage}</p>
+            <p style="color:#721c24;font-size:12px;margin-top:5px;">Bitte überprüfen Sie die Konsole für weitere Details.</p>
         </div>
     `;
     resultDiv.innerHTML = html;
