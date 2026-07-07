@@ -1,8 +1,8 @@
 // --- Globale Variablen ---
 let packages = [];
 let parsedAddress = null;
-let firstApiResponse = null; // Speichert die Antwort des ersten API-Calls
-let secondApiResponse = null; // Speichert die Antwort des zweiten API-Calls
+let firstApiResponse = null;
+let secondApiResponse = null;
 
 // --- Paket-Definitionen (DHL-Standard) ---
 const PACKAGE_TYPES = {
@@ -15,6 +15,7 @@ const PACKAGE_TYPES = {
 
 // --- 1. Leitcode parsen ---
 function parseLeitcode() {
+    console.log('🔍 parseLeitcode() aufgerufen');
     const input = document.getElementById('leitcodeInput');
     const leitcode = input.value.trim().replace(/\D/g, '');
     const resultDiv = document.getElementById('result');
@@ -46,6 +47,7 @@ function parseLeitcode() {
 
 // --- 2. Paketgröße aktualisieren ---
 function updatePackageDimensions() {
+    console.log('📐 updatePackageDimensions() aufgerufen');
     const type = document.getElementById('packageType').value;
     const dims = PACKAGE_TYPES[type];
     document.getElementById('pkgLength').value = dims.length;
@@ -55,6 +57,7 @@ function updatePackageDimensions() {
 
 // --- 3. Paket hinzufügen ---
 function addPackage() {
+    console.log('➕ addPackage() aufgerufen');
     const length = parseFloat(document.getElementById('pkgLength').value);
     const width = parseFloat(document.getElementById('pkgWidth').value);
     const height = parseFloat(document.getElementById('pkgHeight').value);
@@ -73,10 +76,12 @@ function addPackage() {
     packages.push({ length, width, height });
     renderPackageList();
     resultDiv.style.display = 'none';
+    console.log(`✅ Paket hinzugefügt: ${length}×${width}×${height} cm`);
 }
 
 // --- 4. Beispielpakete laden ---
 function addPresetPackages() {
+    console.log('📋 addPresetPackages() aufgerufen');
     const preset = [
         { length: 30, width: 20, height: 15 },
         { length: 45, width: 35, height: 20 },
@@ -85,16 +90,19 @@ function addPresetPackages() {
     packages = packages.concat(preset);
     renderPackageList();
     document.getElementById('result').style.display = 'none';
+    console.log(`✅ ${preset.length} Beispielpakete hinzugefügt`);
 }
 
 // --- 5. Paket entfernen ---
 function removePackage(index) {
+    console.log(`🗑️ removePackage(${index}) aufgerufen`);
     packages.splice(index, 1);
     renderPackageList();
 }
 
 // --- 6. Alle Pakete löschen ---
 function clearPackages() {
+    console.log('🗑️ clearPackages() aufgerufen');
     packages = [];
     renderPackageList();
 }
@@ -128,6 +136,7 @@ function renderPackageList() {
 
 // --- 8. Hauptfunktion: Packstation-Kompatibilität prüfen ---
 async function checkPackstationCompatibility() {
+    console.log('🔍 checkPackstationCompatibility() aufgerufen');
     const resultDiv = document.getElementById('result');
     
     if (!parsedAddress) {
@@ -175,15 +184,12 @@ async function checkPackstationCompatibility() {
     // --- API-KONFIGURATION ---
     const authHeader = 'Basic SEFTQ0lBY2Nlc3M6RGVoamlzbGM/MnE=';
     const targetUrl = 'https://depst-mara-prod1-decisionhub.pegacloud.net/prweb/api/HASCI/02/notificationLocations';
-    
-    // CORS-Proxy deaktiviert (direkter Aufruf)
     const useProxy = false;
     const apiUrl = useProxy ? `https://cors-anywhere.herokuapp.com/${targetUrl}` : targetUrl;
     
     try {
         console.log('📤 URL (1. Call):', apiUrl);
         console.log('📦 Payload (1. Call):', JSON.stringify(payload, null, 2));
-        console.log('🔐 Auth:', authHeader);
         
         const response = await fetch(apiUrl, {
             method: 'POST',
@@ -206,13 +212,8 @@ async function checkPackstationCompatibility() {
         const data = await response.json();
         console.log('✅ Antwort (1. Call):', data);
         
-        // Speichere die Antwort für den zweiten Call
         firstApiResponse = data;
-        
-        // Zeige Zwischenergebnis an
         showFirstApiResult(resultDiv, compatiblePackages, incompatiblePackages, data);
-        
-        // --- STARTE ZWEITEN WEBSERVICE-CALL ---
         await callSecondWebService(resultDiv);
         
     } catch (error) {
@@ -226,7 +227,6 @@ async function checkPackstationCompatibility() {
 function showFirstApiResult(resultDiv, compatible, incompatible, apiData) {
     let html = '<strong>📊 Packstation-Kompatibilität (1. Call)</strong><div class="details">';
     
-    // Lokale Bewertung
     if (incompatible.length === 0) {
         html += '<p style="color: #155724;">✅ Alle Pakete passen in Packstationsfächer (max. 60×40×35 cm)</p>';
     } else {
@@ -239,7 +239,6 @@ function showFirstApiResult(resultDiv, compatible, incompatible, apiData) {
         }
     }
     
-    // Service-Antwort
     if (apiData && apiData.locations) {
         html += '<hr style="margin:15px 0;">';
         html += '<h4 style="margin:10px 0;">📍 Vorschläge (1. Call)</h4>';
@@ -288,7 +287,6 @@ function showFirstApiResult(resultDiv, compatible, incompatible, apiData) {
                 <pre style="background:#f8f9fa;padding:10px;border-radius:5px;overflow:auto;max-height:150px;font-size:12px;">${JSON.stringify(apiData, null, 2)}</pre>
             </details>
         `;
-        
     } else if (apiData) {
         html += '<hr style="margin:15px 0;">';
         html += `<p style="color: #856404;">ℹ️ Keine Standortdaten in der Antwort.</p>`;
@@ -307,6 +305,7 @@ function showFirstApiResult(resultDiv, compatible, incompatible, apiData) {
 
 // --- 10. Zweiten WebService aufrufen ---
 async function callSecondWebService(resultDiv) {
+    console.log('📞 callSecondWebService() aufgerufen');
     const secondUrl = 'https://depst-mara-stg1-decisionhub.pegacloud.net/prweb/api/PegaMKTContainer/V3/Container';
     const secondPayload = {
         "ContainerName": "GetHASCI2",
@@ -346,34 +345,27 @@ async function callSecondWebService(resultDiv) {
         console.log('✅ Antwort (2. Call):', data);
         
         secondApiResponse = data;
-        
-        // Zeige das Endergebnis mit Tabelle
         showFinalResult(resultDiv, data);
         
     } catch (error) {
         console.error('❌ Fehler beim 2. Call:', error);
         secondApiResponse = null;
-        // Zeige Fehler im Ergebnis an
         showSecondApiError(resultDiv, error.message);
     }
 }
 
 // --- 11. Finales Ergebnis mit Tabelle anzeigen ---
 function showFinalResult(resultDiv, data) {
+    console.log('📊 showFinalResult() aufgerufen');
     let html = '<strong>📊 Endergebnis</strong><div class="details">';
     
-    // Erfolgsmeldung für den ersten Call
     html += '<p style="color: #155724;">✅ 1. Call erfolgreich durchgeführt</p>';
-    
-    // Tabelle für den zweiten Call
     html += '<hr style="margin:15px 0;">';
     html += '<h4 style="margin:10px 0;">📋 Ergebnisse des 2. WebService-Calls</h4>';
     
-    // Prüfen ob wir Daten haben - Struktur: ContainerList[0].RankedResults
     let results = null;
     
     if (data && data.Status === 'OK' && data.ContainerList && data.ContainerList.length > 0) {
-        // Durchsuche alle Container nach RankedResults
         for (let container of data.ContainerList) {
             if (container.RankedResults && container.RankedResults.length > 0) {
                 results = container.RankedResults;
@@ -399,33 +391,26 @@ function showFinalResult(resultDiv, data) {
             <tbody>
         `;
         
-        // Nur die ersten 10 Ergebnisse anzeigen
         const displayResults = results.slice(0, 10);
         displayResults.forEach((item, index) => {
             const rowColor = index % 2 === 0 ? '#f8f9fa' : 'white';
             
-            // OutletType bestimmen und Availability setzen
             let outletType = item.OutletType || 'N/A';
             let typeIcon = '';
-            let availabilityText = 'Available'; // Default
+            let availabilityText = 'Available';
             
-            // Korrekte Erkennung mit toLowerCase()
             const outletTypeLower = outletType.toLowerCase();
             
             if (outletTypeLower.includes('parcel')) {
                 typeIcon = '📦 ';
-                // Bei Packstationen: Verfügbarkeit aus dem Feld Available
                 availabilityText = item.Available === true ? 'Available' : 'Unavailable';
             } else if (outletTypeLower.includes('post')) {
                 typeIcon = '🏤 ';
-                // Post Offices sind immer verfügbar
                 availabilityText = 'Available';
             } else {
-                // Fallback: Feld Available verwenden
                 availabilityText = item.Available === true ? 'Available' : 'Unavailable';
             }
             
-            // Rating als Zahl
             let ratingDisplay = 'N/A';
             if (item.Rating !== undefined && item.Rating !== null) {
                 const ratingNum = parseFloat(item.Rating);
@@ -464,7 +449,6 @@ function showFinalResult(resultDiv, data) {
         `;
     }
     
-    // Zusätzliche Informationen
     html += `
         <div style="margin-top:15px;padding:15px;background:#f1f3f5;border-radius:8px;font-size:13px;color:#555;">
             <strong>📌 Zusammenfassung:</strong><br>
@@ -482,7 +466,6 @@ function showFinalResult(resultDiv, data) {
 
 // --- 12. Fehler beim zweiten Call anzeigen ---
 function showSecondApiError(resultDiv, errorMessage) {
-    // Füge den Fehler zum bestehenden Ergebnis hinzu
     let html = resultDiv.innerHTML;
     html = html.replace('<div style="margin-top:15px;padding:10px;background:#e3f2fd;border-radius:8px;text-align:center;">⏳ Führe zweiten WebService-Call durch...</div>', '');
     html += `
@@ -499,7 +482,6 @@ function showSecondApiError(resultDiv, errorMessage) {
 function showPackstationResult(resultDiv, compatible, incompatible, apiData) {
     let html = '<strong>📊 Packstation-Kompatibilität</strong><div class="details">';
     
-    // Lokale Bewertung
     if (incompatible.length === 0) {
         html += '<p style="color: #155724;">✅ Alle Pakete passen in Packstationsfächer (max. 60×40×35 cm)</p>';
     } else {
@@ -512,7 +494,6 @@ function showPackstationResult(resultDiv, compatible, incompatible, apiData) {
         }
     }
     
-    // Service-Antwort
     if (apiData && apiData.locations) {
         html += '<hr style="margin:15px 0;">';
         html += '<h4 style="margin:10px 0;">📍 Vorschläge</h4>';
@@ -561,7 +542,6 @@ function showPackstationResult(resultDiv, compatible, incompatible, apiData) {
                 <pre style="background:#f8f9fa;padding:10px;border-radius:5px;overflow:auto;max-height:200px;font-size:12px;">${JSON.stringify(apiData, null, 2)}</pre>
             </details>
         `;
-        
     } else if (apiData) {
         html += '<hr style="margin:15px 0;">';
         html += `<p style="color: #856404;">ℹ️ Keine Standortdaten in der Antwort.</p>`;
@@ -618,6 +598,7 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('🔗 API (1. Call):', 'https://depst-mara-prod1-decisionhub.pegacloud.net');
     console.log('🔗 API (2. Call):', 'https://depst-mara-stg1-decisionhub.pegacloud.net');
     console.log('🔐 Basic Auth aktiviert');
+    console.log('✅ Alle Funktionen registriert');
     
     updatePackageDimensions();
     
