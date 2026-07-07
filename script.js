@@ -52,9 +52,11 @@ function parseLeitcode() {
 // --- RESULT RESET ---
 function resetResult() {
     const resultDiv = document.getElementById('result');
-    resultDiv.style.display = 'none';
-    resultDiv.className = 'result';
-    resultDiv.innerHTML = '';
+    if (resultDiv) {
+        resultDiv.style.display = 'none';
+        resultDiv.className = 'result';
+        resultDiv.innerHTML = '';
+    }
     console.log('🔄 Ergebnis zurückgesetzt');
     
     // Auch die gespeicherten API-Responses zurücksetzen
@@ -611,4 +613,51 @@ function showPackstationResult(resultDiv, compatible, incompatible, apiData) {
     </p>`;
     
     html += '</div>';
-    resultDiv.className = 'result
+    resultDiv.className = 'result success';
+    resultDiv.innerHTML = html;
+    resultDiv.style.display = 'block';
+}
+
+// --- Hilfsfunktionen ---
+function generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16).toUpperCase();
+    });
+}
+
+function isValidPLZ(plz) {
+    if (plz.length !== 5) return false;
+    const plzInt = parseInt(plz);
+    return plzInt >= 1000 && plzInt <= 99999;
+}
+
+function showSuccess(resultDiv, message) {
+    resultDiv.className = 'result success';
+    resultDiv.innerHTML = `<strong>✅</strong> <p>${message}</p>`;
+    resultDiv.style.display = 'block';
+}
+
+function showError(resultDiv, message) {
+    resultDiv.className = 'result error';
+    resultDiv.innerHTML = `<strong>❌ Fehler</strong><p>${message}</p>`;
+    resultDiv.style.display = 'block';
+}
+
+// --- Event-Listener ---
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('📍 Seite geladen:', window.location.origin);
+    console.log('🔗 API (1. Call):', 'https://depst-mara-prod1-decisionhub.pegacloud.net');
+    console.log('🔗 API (2. Call):', 'https://depst-mara-stg1-decisionhub.pegacloud.net');
+    console.log('🔐 Basic Auth aktiviert');
+    console.log('✅ Alle Funktionen registriert');
+    
+    updatePackageDimensions();
+    
+    document.getElementById('leitcodeInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            parseLeitcode();
+        }
+    });
+});
