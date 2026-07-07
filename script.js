@@ -15,6 +15,45 @@ const PACKAGE_TYPES = {
     'XL': { length: 80, width: 50, height: 45, label: 'XL (Extra Large)' }
 };
 
+// --- Environment ---
+let currentEnv = 'prod';
+
+function getCurrentEnvironment() {
+    return currentEnv;
+}
+
+function toggleEnvironment() {
+    const toggle = document.getElementById('envToggle');
+    const slider = document.getElementById('envSlider');
+    const indicator = document.getElementById('envIndicator');
+    const status = document.getElementById('envStatus');
+    const label = document.getElementById('envLabel');
+    
+    if (toggle && toggle.checked) {
+        currentEnv = 'stg';
+        if (slider) slider.style.background = '#ffc107';
+        if (label) label.textContent = 'STG';
+        if (status) {
+            status.textContent = 'STAGING';
+            status.style.background = '#ffc107';
+            status.style.color = '#333';
+        }
+        if (indicator) indicator.style.transform = 'translateX(26px)';
+        console.log('🔄 Umgebung auf STAGING umgeschaltet');
+    } else {
+        currentEnv = 'prod';
+        if (slider) slider.style.background = '#ccc';
+        if (label) label.textContent = 'PROD';
+        if (status) {
+            status.textContent = 'PRODUCTION';
+            status.style.background = '#28a745';
+            status.style.color = 'white';
+        }
+        if (indicator) indicator.style.transform = 'translateX(0px)';
+        console.log('🔄 Umgebung auf PRODUCTION umgeschaltet');
+    }
+}
+
 // --- 1. Leitcode parsen ---
 function parseLeitcode() {
     console.log('🔍 parseLeitcode() aufgerufen');
@@ -158,11 +197,9 @@ async function checkPackstationCompatibility() {
         pkg.length > 60 || pkg.width > 40 || pkg.height > 35
     );
     
-    // Eindeutige Correlation ID
     const timestamp = Date.now();
     const correlationId = `TestDemo_${timestamp}_${Math.random().toString(36).substring(7)}`;
     
-    // Payload erstellen
     const payload = {
         "productionLocationCode": "TestDemo",
         "deliveryRole": "Paketzusteller",
@@ -182,16 +219,12 @@ async function checkPackstationCompatibility() {
         }))
     };
     
-    // Status anzeigen
     resultDiv.className = 'result info';
     resultDiv.innerHTML = '<strong>⏳</strong> <p>Prüfe Packstation-Kompatibilität beim Service...</p>';
     resultDiv.style.display = 'block';
     
-    // --- API-KONFIGURATION ---
     const authHeader = 'Basic SEFTQ0lBY2Nlc3M6RGVoamlzbGM/MnE=';
-    
-    // Umgebung aus dem Toggle lesen
-    const environment = typeof getCurrentEnvironment === 'function' ? getCurrentEnvironment() : 'prod';
+    const environment = getCurrentEnvironment();
     console.log(`🌍 Aktuelle Umgebung: ${environment.toUpperCase()}`);
     
     let targetUrl, secondUrl;
@@ -199,28 +232,19 @@ async function checkPackstationCompatibility() {
     if (environment === 'stg') {
         targetUrl = 'https://depst-mara-stg1-decisionhub.pegacloud.net/prweb/api/HASCI/02/notificationLocations';
         secondUrl = 'https://depst-mara-stg1-decisionhub.pegacloud.net/prweb/api/PegaMKTContainer/V3/Container';
-        console.log('🌍 Verwende STAGING Umgebung');
     } else {
         targetUrl = 'https://depst-mara-prod1-decisionhub.pegacloud.net/prweb/api/HASCI/02/notificationLocations';
         secondUrl = 'https://depst-mara-prod1-decisionhub.pegacloud.net/prweb/api/PegaMKTContainer/V3/Container';
-        console.log('🌍 Verwende PRODUCTION Umgebung');
     }
     
-    // CORS-PROXY: Verwende einen Proxy um CORS-Probleme zu umgehen
-    // Option 1: https://cors-anywhere.herokuapp.com/ (kostenlos, aber begrenzt)
-    // Option 2: https://api.allorigins.win/raw?url= (kostenlos)
-    // Option 3: Eigener Proxy (empfohlen für Produktion)
-    const USE_PROXY = true; // Auf true setzen für CORS-Proxy
+    // CORS-PROXY
+    const USE_PROXY = true;
     const proxyUrl = 'https://api.allorigins.win/raw?url=';
-    // Alternative: 'https://cors-anywhere.herokuapp.com/';
-    
     const apiUrl = USE_PROXY ? `${proxyUrl}${encodeURIComponent(targetUrl)}` : targetUrl;
-    const secondApiUrl = USE_PROXY ? `${proxyUrl}${encodeURIComponent(secondUrl)}` : secondUrl;
-    
-    console.log(`🔧 CORS-Proxy: ${USE_PROXY ? 'AKTIVIERT' : 'DEAKTIVIERT'}`);
-    console.log('📤 URL (1. Call):', apiUrl);
     
     try {
+        console.log('📤 URL (1. Call):', apiUrl);
+        
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
@@ -244,39 +268,14 @@ async function checkPackstationCompatibility() {
         
         firstApiResponse = data;
         showFirstApiResult(resultDiv, compatiblePackages, incompatiblePackages, data);
-        await callSecondWebService(resultDiv, secondApiUrl, environment, USE_PROXY);
+        
+        // Zweiten Call mit Proxy
+        const secondApiUrl = USE_PROXY ? `${proxyUrl}${encodeURIComponent(secondUrl)}` : secondUrl;
+        await callSecondWebService(resultDiv, secondApiUrl, environment);
         
     } catch (error) {
         console.error('❌ Fehler beim 1. Call:', error);
         firstApiResponse = null;
-        
-        // Wenn Proxy fehlschlägt, versuche ohne Proxy
-        if (USE_PROXY) {
-            console.log('🔄 Versuche ohne CORS-Proxy...');
-            try {
-                const fallbackResponse = await fetch(targetUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': authHeader,
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                });
-                
-                if (fallbackResponse.ok) {
-                    const data = await fallbackResponse.json();
-                    console.log('✅ Antwort (1. Call - ohne Proxy):', data);
-                    firstApiResponse = data;
-                    showFirstApiResult(resultDiv, compatiblePackages, incompatiblePackages, data);
-                    await callSecondWebService(resultDiv, secondUrl, environment, false);
-                    return;
-                }
-            } catch (fallbackError) {
-                console.error('❌ Auch ohne Proxy fehlgeschlagen:', fallbackError);
-            }
-        }
-        
         showPackstationResult(resultDiv, compatiblePackages, incompatiblePackages, null);
     }
 }
@@ -362,10 +361,8 @@ function showFirstApiResult(resultDiv, compatible, incompatible, apiData) {
 }
 
 // --- 10. Zweiten WebService aufrufen ---
-async function callSecondWebService(resultDiv, secondUrl, environment, useProxy) {
+async function callSecondWebService(resultDiv, secondUrl, environment) {
     console.log('📞 callSecondWebService() aufgerufen');
-    console.log(`🌍 Zweiter Call in Umgebung: ${environment.toUpperCase()}`);
-    console.log(`🔧 CORS-Proxy: ${useProxy ? 'AKTIVIERT' : 'DEAKTIVIERT'}`);
     
     const secondPayload = {
         "ContainerName": "GetHASCI2",
@@ -651,79 +648,4 @@ function showError(resultDiv, message) {
     resultDiv.style.display = 'block';
 }
 
-// --- Environment-Funktionen ---
-let currentEnv = 'prod';
-
-function getCurrentEnvironment() {
-    return currentEnv;
-}
-
-function toggleEnvironment() {
-    const toggle = document.getElementById('envToggle');
-    const slider = document.getElementById('envSlider');
-    const indicator = document.getElementById('envIndicator');
-    const status = document.getElementById('envStatus');
-    const label = document.getElementById('envLabel');
-    
-    if (toggle && toggle.checked) {
-        currentEnv = 'stg';
-        if (slider) slider.style.background = '#ffc107';
-        if (label) label.textContent = 'STG';
-        if (status) {
-            status.textContent = 'STAGING';
-            status.style.background = '#ffc107';
-            status.style.color = '#333';
-        }
-        if (indicator) indicator.style.transform = 'translateX(26px)';
-        console.log('🔄 Umgebung auf STAGING umgeschaltet');
-    } else {
-        currentEnv = 'prod';
-        if (slider) slider.style.background = '#ccc';
-        if (label) label.textContent = 'PROD';
-        if (status) {
-            status.textContent = 'PRODUCTION';
-            status.style.background = '#28a745';
-            status.style.color = 'white';
-        }
-        if (indicator) indicator.style.transform = 'translateX(0px)';
-        console.log('🔄 Umgebung auf PRODUCTION umgeschaltet');
-    }
-}
-
-// --- Event-Listener ---
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('📍 DOM geladen - registriere Event-Listener...');
-    
-    // 1. Leitcode parsen
-    const btnParse = document.getElementById('btnParseLeitcode');
-    if (btnParse) {
-        btnParse.addEventListener('click', parseLeitcode);
-        console.log('✅ btnParseLeitcode registriert');
-    }
-    
-    // 2. Paketgröße aktualisieren
-    const packageType = document.getElementById('packageType');
-    if (packageType) {
-        packageType.addEventListener('change', updatePackageDimensions);
-        console.log('✅ packageType registriert');
-    }
-    
-    // 3. Paket hinzufügen
-    const btnAdd = document.getElementById('btnAddPackage');
-    if (btnAdd) {
-        btnAdd.addEventListener('click', addPackage);
-        console.log('✅ btnAddPackage registriert');
-    }
-    
-    // 4. Beispielpakete laden
-    const btnPreset = document.getElementById('btnPresetPackages');
-    if (btnPreset) {
-        btnPreset.addEventListener('click', addPresetPackages);
-        console.log('✅ btnPresetPackages registriert');
-    }
-    
-    // 5. Alle Pakete löschen
-    const btnClear = document.getElementById('btnClearPackages');
-    if (btnClear) {
-        btnClear.addEventListener('click', clearPackages);
-        console.log('✅ btnClearPackages registri
+console.log('✅ script.js vollständig geladen!');
