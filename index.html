@@ -45,7 +45,7 @@
                     <div style="display:flex;align-items:center;gap:10px;background:#f8f9fa;padding:8px 15px;border-radius:10px;">
                         <span style="font-size:14px;font-weight:500;color:#555;">🌍 Environment:</span>
                         <label style="position:relative;display:inline-block;width:60px;height:34px;cursor:pointer;">
-                            <input type="checkbox" id="envToggle" style="opacity:0;width:0;height:0;">
+                            <input type="checkbox" id="envToggle" onchange="toggleEnvironment()" style="opacity:0;width:0;height:0;">
                             <span id="envSlider" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#ccc;transition:.4s;border-radius:34px;">
                                 <span id="envLabel" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:white;font-size:11px;font-weight:bold;text-shadow:0 1px 2px rgba(0,0,0,0.3);">PROD</span>
                             </span>
@@ -67,7 +67,7 @@
                 <h2>1. Leitcode eingeben</h2>
                 <div class="input-group">
                     <input type="text" id="leitcodeInput" placeholder="z.B. 53113032075" maxlength="11">
-                    <button id="btnParseLeitcode">Adresse laden</button>
+                    <button onclick="parseLeitcode()">Adresse laden</button>
                 </div>
                 <div id="addressPreview" class="address-preview" style="display:none;">
                     <p><strong>📍 Adresse:</strong> <span id="displayPlz">---</span> - Straße <span id="displayStreet">---</span>, Nr. <span id="displayHn">---</span></p>
@@ -81,7 +81,7 @@
                 <div class="package-config">
                     <div class="package-type">
                         <h3>📦 Pakettyp</h3>
-                        <select id="packageType">
+                        <select id="packageType" onchange="updatePackageDimensions()">
                             <option value="XS">XS (Mini)</option>
                             <option value="S" selected>S (Small)</option>
                             <option value="M">M (Medium)</option>
@@ -100,8 +100,8 @@
                     </div>
                     
                     <div class="package-actions">
-                        <button id="btnAddPackage" class="btn-primary">➕ Paket hinzufügen</button>
-                        <button id="btnPresetPackages" class="btn-secondary">📋 Beispielpakete laden</button>
+                        <button onclick="addPackage()" class="btn-primary">➕ Paket hinzufügen</button>
+                        <button onclick="addPresetPackages()" class="btn-secondary">📋 Beispielpakete laden</button>
                     </div>
                 </div>
             </div>
@@ -113,13 +113,13 @@
                     <p class="empty-message">Noch keine Pakete hinzugefügt.</p>
                 </div>
                 <div class="list-actions">
-                    <button id="btnClearPackages" class="btn-danger">🗑️ Alle löschen</button>
+                    <button onclick="clearPackages()" class="btn-danger">🗑️ Alle löschen</button>
                 </div>
             </div>
 
             <!-- Schritt 4: Prüfung starten -->
             <div class="section">
-                <button id="btnCheckCompatibility" class="btn-check">
+                <button onclick="checkPackstationCompatibility()" class="btn-check" id="checkBtn">
                     🔍 Packstation-Kompatibilität prüfen
                 </button>
             </div>
@@ -192,7 +192,7 @@
             });
         });
 
-        console.log('✅ Login-System & Environment-Toggle geladen');
+        console.log('✅ Login-System geladen');
     </script>
 </body>
 </html>
