@@ -220,11 +220,11 @@ async function checkPackstationCompatibility() {
         pkg.length > 60 || pkg.width > 40 || pkg.height > 35
     );
     
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(7);
-    const correlationId = `TestDemo_${timestamp}_${random}`;
+    // --- WICHTIG: STATISCHE CORRELATION ID WIE IN POSTMAN ---
+    // NICHT dynamisch mit Timestamp, sondern statisch "TestDemo"
+    const correlationId = "TestDemo";
     lastCorrelationId = correlationId;
-    console.log(`🆔 Neue Correlation ID: ${correlationId}`);
+    console.log(`🆔 Correlation ID: ${correlationId} (STATISCH wie in Postman)`);
     
     const payload = {
         "productionLocationCode": "TestDemo",
@@ -265,19 +265,16 @@ async function checkPackstationCompatibility() {
         console.log('🌍 Verwende PRODUCTION Umgebung');
     }
     
-    // --- CORS-PROXY mit Header-Unterstützung ---
-    // Verwende einen Proxy der den Authorization-Header durchlässt
-    const USE_PROXY = true;
-    const proxyUrl = 'https://corsproxy.io/?';
-    // Alternativ: 'https://api.allorigins.win/raw?url='
-    // Oder: 'https://cors-anywhere.herokuapp.com/'
+    // --- CORS-PROXY NUR FÜR DEN ERSTEN CALL ---
+    const WORKER_URL = 'https://dein-worker-name.workers.dev'; // HIER EINTRAGEN
+    const USE_PROXY = false; // Auf true setzen wenn Worker verfügbar
     
-    const apiUrl = USE_PROXY ? `${proxyUrl}${encodeURIComponent(targetUrl)}` : targetUrl;
-    console.log('📤 URL (1. Call):', apiUrl);
-    console.log('📦 Adresse:', parsedAddress.plz, parsedAddress.streetCode, parsedAddress.houseNumber);
+    const firstApiUrl = USE_PROXY ? `${WORKER_URL}?url=${encodeURIComponent(targetUrl)}` : targetUrl;
+    console.log('📤 1. Call URL:', firstApiUrl);
+    console.log('📦 Payload:', JSON.stringify(payload, null, 2));
     
     try {
-        const response = await fetch(apiUrl, {
+        const response = await fetch(firstApiUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -304,15 +301,13 @@ async function checkPackstationCompatibility() {
         firstApiResponse = data;
         showFirstApiResult(resultDiv, compatiblePackages, incompatiblePackages, data);
         
-        // Zweiten Call mit Proxy
-        const secondApiUrl = USE_PROXY ? `${proxyUrl}${encodeURIComponent(secondUrl)}` : secondUrl;
-        await callSecondWebService(resultDiv, secondApiUrl, environment);
+        // --- ZWEITER CALL: DIREKT OHNE PROXY ---
+        console.log('📤 2. Call URL (direkt):', secondUrl);
+        await callSecondWebService(resultDiv, secondUrl, environment);
         
     } catch (error) {
         console.error('❌ Fehler beim 1. Call:', error);
         firstApiResponse = null;
-        
-        // FALLBACK: Lokale Prüfung
         showLocalResult(resultDiv, compatiblePackages, incompatiblePackages, error.message);
     }
 }
@@ -403,16 +398,14 @@ async function callSecondWebService(resultDiv, secondUrl, environment) {
         "AppID": "IBU"
     };
     
-    const authHeader = 'Basic SEFTQ0lBY2Nlc3M6RGVoamlzbGM/MnE=';
-    
     try {
         console.log('📤 Zweiter Call URL:', secondUrl);
+        console.log('📦 Payload:', JSON.stringify(secondPayload, null, 2));
         
         const response = await fetch(secondUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': authHeader,
                 'Accept': 'application/json',
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
                 'Pragma': 'no-cache',
@@ -529,6 +522,12 @@ function showFinalResult(resultDiv, data) {
         html += '</div>';
     } else {
         html += '<p style="color: #856404;">ℹ️ Keine RankedResults in der Antwort gefunden.</p>';
+        html += `
+            <details>
+                <summary style="cursor:pointer;color:#667eea;">📄 JSON-Antwort (2. Call)</summary>
+                <pre style="background:#f8f9fa;padding:10px;border-radius:5px;overflow:auto;max-height:200px;font-size:12px;">${JSON.stringify(data, null, 2)}</pre>
+            </details>
+        `;
     }
     
     html += `
@@ -587,7 +586,6 @@ function showLocalResult(resultDiv, compatible, incompatible, errorMessage) {
             <strong style="color:#856404;">ℹ️ Hinweis:</strong>
             <p style="color:#856404;margin-top:5px;">Der Service ist nicht erreichbar (${errorMessage}).</p>
             <p style="color:#856404;">Die Prüfung basiert auf den lokalen Packstations-Maßen (max. 60×40×35 cm).</p>
-            <p style="color:#856404;font-size:12px;margin-top:5px;">Tipp: Versuche die STG-Umgebung oder installiere die "Moesif CORS" Browser-Erweiterung.</p>
         </div>
     `;
     
