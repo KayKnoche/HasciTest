@@ -206,20 +206,27 @@ async function checkPackstationCompatibility() {
         console.log('🌍 Verwende PRODUCTION Umgebung');
     }
     
-    const apiUrl = targetUrl;
+    // CORS-PROXY: Verwende einen Proxy um CORS-Probleme zu umgehen
+    // Option 1: https://cors-anywhere.herokuapp.com/ (kostenlos, aber begrenzt)
+    // Option 2: https://api.allorigins.win/raw?url= (kostenlos)
+    // Option 3: Eigener Proxy (empfohlen für Produktion)
+    const USE_PROXY = true; // Auf true setzen für CORS-Proxy
+    const proxyUrl = 'https://api.allorigins.win/raw?url=';
+    // Alternative: 'https://cors-anywhere.herokuapp.com/';
+    
+    const apiUrl = USE_PROXY ? `${proxyUrl}${encodeURIComponent(targetUrl)}` : targetUrl;
+    const secondApiUrl = USE_PROXY ? `${proxyUrl}${encodeURIComponent(secondUrl)}` : secondUrl;
+    
+    console.log(`🔧 CORS-Proxy: ${USE_PROXY ? 'AKTIVIERT' : 'DEAKTIVIERT'}`);
+    console.log('📤 URL (1. Call):', apiUrl);
     
     try {
-        console.log('📤 URL (1. Call):', apiUrl);
-        
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': authHeader,
-                'Accept': 'application/json',
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache',
-                'Expires': '0'
+                'Accept': 'application/json'
             },
             body: JSON.stringify(payload)
         });
@@ -237,11 +244,39 @@ async function checkPackstationCompatibility() {
         
         firstApiResponse = data;
         showFirstApiResult(resultDiv, compatiblePackages, incompatiblePackages, data);
-        await callSecondWebService(resultDiv, secondUrl, environment);
+        await callSecondWebService(resultDiv, secondApiUrl, environment, USE_PROXY);
         
     } catch (error) {
         console.error('❌ Fehler beim 1. Call:', error);
         firstApiResponse = null;
+        
+        // Wenn Proxy fehlschlägt, versuche ohne Proxy
+        if (USE_PROXY) {
+            console.log('🔄 Versuche ohne CORS-Proxy...');
+            try {
+                const fallbackResponse = await fetch(targetUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authHeader,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (fallbackResponse.ok) {
+                    const data = await fallbackResponse.json();
+                    console.log('✅ Antwort (1. Call - ohne Proxy):', data);
+                    firstApiResponse = data;
+                    showFirstApiResult(resultDiv, compatiblePackages, incompatiblePackages, data);
+                    await callSecondWebService(resultDiv, secondUrl, environment, false);
+                    return;
+                }
+            } catch (fallbackError) {
+                console.error('❌ Auch ohne Proxy fehlgeschlagen:', fallbackError);
+            }
+        }
+        
         showPackstationResult(resultDiv, compatiblePackages, incompatiblePackages, null);
     }
 }
@@ -327,9 +362,10 @@ function showFirstApiResult(resultDiv, compatible, incompatible, apiData) {
 }
 
 // --- 10. Zweiten WebService aufrufen ---
-async function callSecondWebService(resultDiv, secondUrl, environment) {
+async function callSecondWebService(resultDiv, secondUrl, environment, useProxy) {
     console.log('📞 callSecondWebService() aufgerufen');
     console.log(`🌍 Zweiter Call in Umgebung: ${environment.toUpperCase()}`);
+    console.log(`🔧 CORS-Proxy: ${useProxy ? 'AKTIVIERT' : 'DEAKTIVIERT'}`);
     
     const secondPayload = {
         "ContainerName": "GetHASCI2",
@@ -351,10 +387,7 @@ async function callSecondWebService(resultDiv, secondUrl, environment) {
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': authHeader,
-                'Accept': 'application/json',
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache',
-                'Expires': '0'
+                'Accept': 'application/json'
             },
             body: JSON.stringify(secondPayload)
         });
@@ -618,7 +651,7 @@ function showError(resultDiv, message) {
     resultDiv.style.display = 'block';
 }
 
-// --- Environment-Funktionen (werden von index.html aufgerufen) ---
+// --- Environment-Funktionen ---
 let currentEnv = 'prod';
 
 function getCurrentEnvironment() {
@@ -666,8 +699,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (btnParse) {
         btnParse.addEventListener('click', parseLeitcode);
         console.log('✅ btnParseLeitcode registriert');
-    } else {
-        console.error('❌ btnParseLeitcode nicht gefunden!');
     }
     
     // 2. Paketgröße aktualisieren
@@ -695,43 +726,4 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnClear = document.getElementById('btnClearPackages');
     if (btnClear) {
         btnClear.addEventListener('click', clearPackages);
-        console.log('✅ btnClearPackages registriert');
-    }
-    
-    // 6. Kompatibilität prüfen
-    const btnCheck = document.getElementById('btnCheckCompatibility');
-    if (btnCheck) {
-        btnCheck.addEventListener('click', checkPackstationCompatibility);
-        console.log('✅ btnCheckCompatibility registriert');
-    }
-    
-    // 7. Enter-Taste für Leitcode
-    const leitcodeInput = document.getElementById('leitcodeInput');
-    if (leitcodeInput) {
-        leitcodeInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                parseLeitcode();
-            }
-        });
-        console.log('✅ leitcodeInput registriert');
-    }
-    
-    // 8. Environment Toggle
-    const envToggle = document.getElementById('envToggle');
-    if (envToggle) {
-        envToggle.addEventListener('change', toggleEnvironment);
-        console.log('✅ envToggle registriert');
-    }
-    
-    // Initiale Paketgröße setzen
-    updatePackageDimensions();
-    
-    console.log('✅ Alle Event-Listener registriert!');
-    console.log('🔍 Verfügbare Funktionen:');
-    console.log('  - parseLeitcode:', typeof parseLeitcode);
-    console.log('  - addPackage:', typeof addPackage);
-    console.log('  - addPresetPackages:', typeof addPresetPackages);
-    console.log('  - clearPackages:', typeof clearPackages);
-    console.log('  - checkPackstationCompatibility:', typeof checkPackstationCompatibility);
-    console.log('  - toggleEnvironment:', typeof toggleEnvironment);
-});
+        console.log('✅ btnClearPackages registri
