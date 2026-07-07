@@ -77,6 +77,41 @@
         <div id="result" class="result" style="display:none;"></div>
     </div>
 
+    <!-- Skript-Einbindung mit Überprüfung -->
     <script src="script.js"></script>
+    <script>
+        // Überprüfung, ob die Skripte korrekt geladen wurden
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('✅ index.html geladen');
+            
+            // Prüfen ob alle Funktionen verfügbar sind
+            const functions = ['parseLeitcode', 'updatePackageDimensions', 'addPackage', 'addPresetPackages', 'clearPackages', 'checkPackstationCompatibility'];
+            let allLoaded = true;
+            
+            functions.forEach(func => {
+                if (typeof window[func] === 'function') {
+                    console.log(`✅ Funktion ${func} verfügbar`);
+                } else {
+                    console.error(`❌ Funktion ${func} NICHT verfügbar`);
+                    allLoaded = false;
+                }
+            });
+            
+            if (!allLoaded) {
+                console.error('⚠️ Einige Funktionen sind nicht verfügbar! Bitte prüfe die script.js Datei.');
+                document.getElementById('result').className = 'result error';
+                document.getElementById('result').innerHTML = `
+                    <strong>❌ Fehler beim Laden</strong>
+                    <p>Die script.js Datei konnte nicht korrekt geladen werden. Bitte überprüfe:</p>
+                    <ul style="margin-left:20px;margin-top:10px;">
+                        <li>Ob die Datei script.js im gleichen Ordner liegt wie index.html</li>
+                        <li>Ob es Syntaxfehler in der script.js gibt (Konsole prüfen)</li>
+                        <li>Ob der Dateiname korrekt ist (Groß-/Kleinschreibung beachten)</li>
+                    </ul>
+                `;
+                document.getElementById('result').style.display = 'block';
+            }
+        });
+    </script>
 </body>
 </html>
