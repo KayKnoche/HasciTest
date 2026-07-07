@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- LOGIN OVERLAY - JETZT MIT USERNAME/PASSWORD FELDERN -->
+    <!-- LOGIN OVERLAY -->
     <div id="loginOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);z-index:9999;display:flex;justify-content:center;align-items:center;">
         <div style="background:white;padding:40px;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,0.3);max-width:400px;width:90%;">
             <h2 style="text-align:center;color:#333;margin-bottom:5px;">🔐 Zugang erforderlich</h2>
@@ -49,7 +49,7 @@
                     <div style="display:flex;align-items:center;gap:10px;background:#f8f9fa;padding:8px 15px;border-radius:10px;">
                         <span style="font-size:14px;font-weight:500;color:#555;">🌍 Environment:</span>
                         <label style="position:relative;display:inline-block;width:60px;height:34px;cursor:pointer;">
-                            <input type="checkbox" id="envToggle" onchange="toggleEnvironment()" style="opacity:0;width:0;height:0;">
+                            <input type="checkbox" id="envToggle" onchange="window.handleEnvToggle()" style="opacity:0;width:0;height:0;">
                             <span id="envSlider" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#ccc;transition:.4s;border-radius:34px;">
                                 <span id="envLabel" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:white;font-size:11px;font-weight:bold;text-shadow:0 1px 2px rgba(0,0,0,0.3);">PROD</span>
                             </span>
@@ -142,8 +142,7 @@
 
     <script src="script.js"></script>
     <script>
-        // --- LOGIN KONFIGURATION ---
-        // Diese Credentials werden für Basic Auth verwendet
+        // --- LOGIN KONFIGURATION (wird von script.js verwendet) ---
         let authUsername = '';
         let authPassword = '';
         let authHeader = '';
@@ -181,7 +180,6 @@
         }
 
         function logout() {
-            // Credentials löschen
             authUsername = '';
             authPassword = '';
             authHeader = '';
@@ -196,13 +194,14 @@
             document.getElementById('loginPassword').value = '';
             document.getElementById('loginError').style.display = 'none';
             
-            // Ergebnis zurücksetzen
-            resetResult();
+            if (typeof resetResult === 'function') {
+                resetResult();
+            }
             
             console.log('👋 Benutzer abgemeldet');
         }
 
-        // Funktion für script.js um Auth-Header zu bekommen
+        // --- Funktionen für script.js ---
         function getAuthHeader() {
             return authHeader;
         }
@@ -211,14 +210,14 @@
             return authUsername;
         }
 
-        // --- ENVIRONMENT TOGGLE ---
-        let currentEnv = 'prod';
+        // --- Environment Toggle ---
+        let envValue = 'prod';
 
         function getCurrentEnvironment() {
-            return currentEnv;
+            return envValue;
         }
 
-        function toggleEnvironment() {
+        window.handleEnvToggle = function() {
             const toggle = document.getElementById('envToggle');
             const slider = document.getElementById('envSlider');
             const indicator = document.getElementById('envIndicator');
@@ -226,7 +225,7 @@
             const label = document.getElementById('envLabel');
             
             if (toggle && toggle.checked) {
-                currentEnv = 'stg';
+                envValue = 'stg';
                 if (slider) slider.style.background = '#ffc107';
                 if (label) label.textContent = 'STG';
                 if (status) {
@@ -236,9 +235,8 @@
                 }
                 if (indicator) indicator.style.transform = 'translateX(26px)';
                 console.log('🔄 Umgebung auf STAGING umgeschaltet');
-                resetResult();
             } else {
-                currentEnv = 'prod';
+                envValue = 'prod';
                 if (slider) slider.style.background = '#28a745';
                 if (label) label.textContent = 'PROD';
                 if (status) {
@@ -248,11 +246,14 @@
                 }
                 if (indicator) indicator.style.transform = 'translateX(0px)';
                 console.log('🔄 Umgebung auf PRODUCTION umgeschaltet');
+            }
+            
+            if (typeof resetResult === 'function') {
                 resetResult();
             }
-        }
+        };
 
-        // --- Login-Initialisierung ---
+        // --- Initialisierung ---
         document.addEventListener('DOMContentLoaded', function() {
             // Prüfen ob bereits eingeloggt
             if (sessionStorage.getItem('loggedIn') === 'true') {
@@ -285,9 +286,9 @@
             });
             
             // Standard: PROD
-            currentEnv = 'prod';
+            envValue = 'prod';
             
-            // Initiale Paketgröße setzen (falls vorhanden)
+            // Initiale Paketgröße setzen
             if (typeof updatePackageDimensions === 'function') {
                 updatePackageDimensions();
             }
@@ -295,7 +296,6 @@
 
         console.log('✅ Login-System & Environment-Toggle geladen');
         console.log('💡 Benutzername und Passwort werden für Basic Auth verwendet');
-        console.log('🔐 Die Credentials bleiben lokal im Browser');
     </script>
 </body>
 </html>
